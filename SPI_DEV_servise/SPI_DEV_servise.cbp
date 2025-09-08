@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="SPI_DEV_servise" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/SPI_DEV_servise" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add directory="include" />
+					<Add directory="/home/vtt/Desktop/SPI_DEV_servise/" />
+					<Add directory="hard_driver" />
+					<Add directory="VTK" />
+					<Add directory="ADS1293_LIB" />
+					<Add directory="MAX30009_LIB" />
+				</Compiler>
+				<Linker>
+					<Add library="gpiod" />
+				</Linker>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/SPI_DEV_servise" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add directory="include" />
+					<Add directory="hard_driver" />
+					<Add directory="VTK" />
+					<Add directory="MAX30009_LIB" />
+					<Add directory="ADS1293_LIB" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+					<Add library="gpiod" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-fexceptions" />
+			<Add directory="WS281x" />
+		</Compiler>
+		<Unit filename="ADS1293_LIB/ADS1293_IO.h" />
+		<Unit filename="ADS1293_LIB/ADS1293_LIB.h" />
+		<Unit filename="ADS1293_LIB/ADS1293_register_map.h" />
+		<Unit filename="MAX30009_LIB/max30009_data_struct.h" />
+		<Unit filename="MAX30009_LIB/max30009_ext_mux.h" />
+		<Unit filename="MAX30009_LIB/max30009_lib.h" />
+		<Unit filename="MAX30009_LIB/max30009_register_struct.h" />
+		<Unit filename="VTK/VT_GPIO_interface.h" />
+		<Unit filename="VTK/VT_register_container.h" />
+		<Unit filename="VTK/VT_register_process_interface.h" />
+		<Unit filename="VTK/VT_sync_data_stream_interface.h" />
+		<Unit filename="WS281x/clk.h" />
+		<Unit filename="WS281x/dma.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="WS281x/dma.h" />
+		<Unit filename="WS281x/gpio.h" />
+		<Unit filename="WS281x/mailbox.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="WS281x/mailbox.h" />
+		<Unit filename="WS281x/pcm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="WS281x/pcm.h" />
+		<Unit filename="WS281x/pwm.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="WS281x/pwm.h" />
+		<Unit filename="WS281x/rpihw.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="WS281x/rpihw.h" />
+		<Unit filename="WS281x/ws2811.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="WS281x/ws2811.h" />
+		<Unit filename="hard_driver/GPIO_driver.h" />
+		<Unit filename="hard_driver/SPI_hard_driver.h" />
+		<Unit filename="include/ADS1293_process.h" />
+		<Unit filename="include/JSON_TCP_sever.h" />
+		<Unit filename="include/MAX30009_process.h" />
+		<Unit filename="include/WS2812_process.h" />
+		<Unit filename="include/json.hpp" />
+		<Unit filename="main.cpp" />
+		<Unit filename="src/ADS1293_process.cpp" />
+		<Unit filename="src/MAX30009_process.cpp" />
+		<Extensions />
+	</Project>
+</CodeBlocks_project_file>

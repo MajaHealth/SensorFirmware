@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="power_control_servise" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="Debug">
+				<Option output="bin/Debug/power_control_servise" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add directory="include" />
+					<Add directory="/home/vtt/Desktop/SPI_DEV_servise/" />
+					<Add directory="hard_driver" />
+					<Add directory="VTK" />
+					<Add directory="ADS1293_LIB" />
+					<Add directory="MAX30009_LIB" />
+				</Compiler>
+				<Linker>
+					<Add library="gpiod" />
+					<Add library="i2c" />
+					<Add directory="/usr/lib/arm-linux-gnueabihf" />
+				</Linker>
+			</Target>
+			<Target title="Release">
+				<Option output="bin/Release/power_control_servise" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add directory="include" />
+					<Add directory="hard_driver" />
+					<Add directory="VTK" />
+					<Add directory="MAX30009_LIB" />
+					<Add directory="ADS1293_LIB" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+					<Add library="gpiod" />
+					<Add library="i2c" />
+					<Add directory="/usr/lib/arm-linux-gnueabihf" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-fexceptions" />
+			<Add directory="WS281x" />
+		</Compiler>
+		<Unit filename="PWRCNTR_process.cpp" />
+		<Unit filename="VTK/SES_battery_info.h" />
+		<Unit filename="VTK/VT_GPIO_interface.h" />
+		<Unit filename="VTK/VT_SMBUS_interface.h" />
+		<Unit filename="VTK/VT_register_container.h" />
+		<Unit filename="VTK/VT_register_process_interface.h" />
+		<Unit filename="VTK/VT_sync_data_stream_interface.h" />
+		<Unit filename="hard_driver/GPIO_driver.h" />
+		<Unit filename="hard_driver/SPI_hard_driver.h" />
+		<Unit filename="hard_driver/VT_SMBUS_driver.h" />
+		<Unit filename="include/JSON_TCP_sever.h" />
+		<Unit filename="include/PWRCNTR_process.h" />
+		<Unit filename="include/json.hpp" />
+		<Unit filename="main.cpp" />
+		<Extensions />
+	</Project>
+</CodeBlocks_project_file>
