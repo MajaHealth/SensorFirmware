@@ -1,0 +1,214 @@
+================================================================================
+ICG-ECG SYNCHRONIZATION MECHANISM
+================================================================================
+
+FIRMWARE BEHAVIOR (Every 1 second):
+-----------------------------------
+
+Time: 0s          1s          2s          3s          4s
+      |           |           |           |           |
+      |           |           |           |           |
+ICG:  [data data] [-99999, 1] [data data] [-99999, 2] [data data]
+      |           |           |           |           |
+ECG:  [data data] [-99999, 1] [data data] [-99999, 2] [data data]
+      |           |           |           |           |
+      ^           ^           ^           ^           ^
+      |           |           |           |           |
+    Start    Sync Mark 1  Sync Mark 2  Sync Mark 3  ...
+
+
+SYNC MARK FORMAT:
+-----------------
+
+ACTUAL DATA FORMAT (Arrays of Integers):
+
+ECG Data Stream:
+  Normal samples: [ch1, ch2, ch3]              Example: [4140579, 4100438, 2726201]
+  Sync mark:      [-99999, SYNC_NUM, 0]       Example: [-99999, 231, 0]
+                   ^^^^^^^  ^^^^^^^^
+                   Magic#   Sequence#
+
+ICG Data Stream:
+  Normal samples: [I, Q, mag, phase, ...]      Example: [52379102, 66416645, -40836262, -379410, 0]
+  Sync mark:      [-999990000, SYNC_NUM*10000, 0, 0, 0]
+                   ^^^^^^^^^^^  ^^^^^^^^^^^^^^
+                   Magic#       Sequence# (scaled)
+                   Example: [-999990000, 2310000, 0, 0, 0] → sync_num = 231
+
+KEY OBSERVATIONS:
+1. ECG uses magic number: -99999
+2. ICG uses magic number: -999990000 (scaled by 10000)
+3. ICG sync number is also scaled by 10000 (must divide to get actual number)
+4. Both devices inject the SAME sync number, but ICG scales it
+
+REAL EXAMPLES FROM SERVER:
+
+ECG Response:
+  {"data":[[4140579,4100438,2726201],[4140557,4100412,2729889],
+           [-99999,231,0],[4140581,4100413,2729806],...],
+   "timestamp":"2025-10-27 06:12:58.842","type":"data"}
+           ^^^^^^^^^^^^^^
+           Sync mark: sync_num = 231
+
+ICG Response:
+  {"data":[[52379102,66416645,-40836262,-379410,0],
+           [52296790,65829100,-39981448,-373982,0],
+           [-999990000,2310000,0,0,0],[53281094,67541201,-41508299,-379201,0],...],
+   "timestamp":"2025-10-27 06:12:58.729","type":"data"}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+           Sync mark: 2310000 / 10000 = 231
+
+
+TEST VALIDATION PROCESS:
+------------------------
+
+Step 1: Configure Devices
+   ICG: measure_freq=100Hz, stim_table_idx=5, stim_freq=7
+   ECG: R2=4, R3=16
+
+Step 2: Collect Data (30 seconds)
+   Timestamp    ICG Data Received          ECG Data Received
+   =========    =================          =================
+   10:30:00.000 {I:123, Q:456}            {ch1:100, ch2:200, ch3:300}
+   10:30:00.100 {I:234, Q:567}            {ch1:110, ch2:210, ch3:310}
+   ...
+   10:30:01.005 {I:-99999, Q:-99999}      (sync mark 1)
+   10:30:01.007 {ch1:-99999, ch2:-99999, ch3:-99999} (sync mark 1)
+   ...
+   10:30:02.003 {I:-99999, Q:-99999}      (sync mark 2)
+   10:30:02.006 {ch1:-99999, ch2:-99999, ch3:-99999} (sync mark 2)
+   ...
+
+Step 3: Extract Sync Marks
+   ICG Syncs: [(1, 10:30:01.005), (2, 10:30:02.003), (3, 10:30:03.002), ...]
+   ECG Syncs: [(1, 10:30:01.007), (2, 10:30:02.006), (3, 10:30:03.005), ...]
+
+Step 4: Calculate Time Differences
+   Sync #1: |10:30:01.005 - 10:30:01.007| = 2ms   ✓
+   Sync #2: |10:30:02.003 - 10:30:02.006| = 3ms   ✓
+   Sync #3: |10:30:03.002 - 10:30:03.005| = 3ms   ✓
+   ...
+   Max difference: 5ms < 50ms threshold (default)  ✓ PASS
+
+
+PASS vs FAIL SCENARIOS:
+-----------------------
+
+PASS Example:
+   Common sync marks: 30
+   Time differences: [2ms, 3ms, 5ms, 4ms, 6ms, ...]
+   Max: 8ms, Avg: 4ms, Threshold: 50ms
+   Result: ✓ PASS (max < 50ms)
+
+FAIL Example 1 - Poor Synchronization:
+   Common sync marks: 30
+   Time differences: [5ms, 75ms, 8ms, 120ms, ...]
+   Max: 120ms, Avg: 45ms, Threshold: 50ms
+   Result: ✗ FAIL (max > 50ms threshold)
+
+FAIL Example 2 - No Common Syncs:
+   ICG syncs: [(1, t1), (2, t2), (3, t3), ...]
+   ECG syncs: [(5, t5), (6, t6), (7, t7), ...]
+   Common: []
+   Result: ✗ FAIL (no matching sync numbers)
+
+
+FIRMWARE CODE LOCATION:
+-----------------------
+
+File: SPI_DEV_servise/main.cpp (lines 109-115)
+
+    if (elapsed_time.count() >= 1000) {
+        sync_num++;
+        MAX30009_process_obj.add_sync_mark(sync_num);  // ICG
+        ADS1293_process_obj.add_sync_mark(sync_num);   // ECG
+        last_call_time = current_time;
+    }
+
+Key Points:
+- Executed EVERY 1000 milliseconds (1 second)
+- SAME sync_num inserted into BOTH ICG and ECG
+- Atomic operation (happens in same loop iteration)
+- Ensures time-locked synchronization
+
+
+TEST MATRIX:
+------------
+
+ICG Measure Frequencies (10):
+  100, 200, 300, 400, 500, 600, 700, 800, 900, 1000 Hz
+
+ECG R2/R3 Combinations (4):
+  (4, 16), (4, 32), (6, 8), (4, 64)
+
+Total Tests: 10 × 4 = 40
+
+Example Test Combinations:
+  #1:  ICG=100Hz  + ECG(R2=4, R3=16)
+  #2:  ICG=100Hz  + ECG(R2=4, R3=32)
+  #3:  ICG=100Hz  + ECG(R2=6, R3=8)
+  #4:  ICG=100Hz  + ECG(R2=4, R3=64)
+  #5:  ICG=200Hz  + ECG(R2=4, R3=16)
+  ...
+  #40: ICG=1000Hz + ECG(R2=4, R3=64)
+
+
+EXPECTED RESULTS:
+-----------------
+
+For a HEALTHY system:
+  - Pass rate: 95-100%
+  - Sync marks found: ~30 per test (1 per second × 30 seconds)
+  - Common syncs: ~30 (all syncs should match)
+  - Max time diff: < 50ms (typically 5-20ms on local system)
+  - Avg time diff: < 20ms (typically 5-15ms)
+
+Warning Signs:
+  - Pass rate < 90%: Investigate timing issues
+  - Common syncs << 30: Severe desynchronization
+  - Max time diff > 100ms: System performance issue
+  - No common syncs: Critical synchronization failure
+
+
+TROUBLESHOOTING:
+----------------
+
+Issue: No sync marks detected
+   Cause: Devices not streaming data OR test too short
+   Fix: Verify measure_enable=true, increase test duration
+
+Issue: Few common sync marks (e.g., 5 out of 30)
+   Cause: Sync numbers drifting or sequence mismatch
+   Fix: Check firmware for counter reset issues
+
+Issue: High time differences (>100ms)
+   Cause: System load, network latency, or TCP buffering
+   Fix: Reduce system load, test locally, check TCP_NODELAY
+
+Issue: Random failures on specific configurations
+   Cause: Specific ICG/ECG settings causing data issues
+   Fix: Investigate those specific parameter combinations
+
+
+RELATED FILES:
+--------------
+
+Test Script:
+  - test_icg_ecg_sync.py           Main test implementation
+
+Documentation:
+  - ICG_ECG_SYNC_TEST.md           Complete documentation
+  - SYNC_TEST_QUICKSTART.md        Quick reference guide
+  - TEST_README.md                 Test suite overview
+  - SYNC_DIAGRAM.txt               This file
+
+Firmware:
+  - SPI_DEV_servise/main.cpp       Sync mark injection
+  - SPI_DEV_servise/include/MAX30009_process.h  (line 84: SYNC_MARK_MAGIC_NUM)
+  - SPI_DEV_servise/include/ADS1293_process.h   (line 49: SYNC_MARK_MAGIC_NUM)
+
+Results:
+  - icg_ecg_sync_test_results_*.json  (auto-generated)
+
+
+================================================================================
