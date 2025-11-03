@@ -148,69 +148,106 @@ python3 test_icg_ecg_drift_1hour.py localhost 10
 
 ## Output Files
 
+> **📘 For detailed column-by-column documentation, see [DRIFT_TEST_OUTPUT_GUIDE.md](DRIFT_TEST_OUTPUT_GUIDE.md)**
+>
+> The comprehensive guide explains:
+> - All 4 output files (requests_log, sync_analysis, anomalies_report, results JSON)
+> - Every column in the CSV files (20 columns in requests_log, 35 columns in sync_analysis)
+> - Sample-accurate timestamp calculations
+> - Common debugging scenarios with examples
+
 ### From Test Script (test_icg_ecg_drift_1hour.py)
 
-The test script generates 2 files on the embedded device:
+The enhanced test script generates 4 files on the embedded device:
 
-### 1. CSV File: `icg_ecg_drift_1hour_YYYYMMDD_HHMMSS.csv`
+### 1. Requests Log: `requests_log_YYYYMMDD_HHMMSS.csv`
 
-Detailed per-sync-mark data for analysis.
+Logs every get_data request made during the test with precise timing.
 
-**Columns:**
-- `sync_num` - Sync marker number
-- `icg_timestamp` - ICG sync mark timestamp (Unix time, seconds)
-- `ecg_timestamp` - ECG sync mark timestamp (Unix time, seconds)
-- `time_diff_ms` - Absolute time difference in milliseconds
-- `elapsed_time_s` - Elapsed time since test start (seconds)
-- `elapsed_time_min` - Elapsed time since test start (minutes)
-- `icg_samples_between` - Number of ICG samples between this sync and next
-- `ecg_samples_between` - Number of ECG samples between this sync and next
-- `icg_sample_deviation` - ICG sample count deviation from expected 400
-- `ecg_sample_deviation` - ECG sample count deviation from expected 400
+**Purpose:** Track request patterns, detect buffering issues, identify missing data
 
-**Example:**
-```csv
-sync_num,icg_timestamp,ecg_timestamp,time_diff_ms,elapsed_time_s,elapsed_time_min,icg_samples_between,ecg_samples_between,icg_sample_deviation,ecg_sample_deviation
-5041,1730013851.234567,1730013851.236789,2.222,1.2,0.02,400,400,0,0
-5042,1730013852.235123,1730013852.237234,2.111,2.2,0.04,400,400,0,0
-```
+**Key columns (20 total):**
+- Request metadata: `request_id`, `request_time_utc`, `elapsed_time_s`
+- ICG packet data: `icg_firmware_timestamp`, `icg_packet_samples`, `icg_sync_count`, `icg_sync_numbers`
+- ECG packet data: `ecg_firmware_timestamp`, `ecg_packet_samples`, `ecg_sync_count`, `ecg_sync_numbers`
+- Anomaly flags: `anomaly_multiple_icg_syncs`, `anomaly_no_icg_data`, `notes`
 
-### 2. JSON File: `icg_ecg_drift_1hour_results_YYYYMMDD_HHMMSS.json`
+**Typical rows:** ~18,000 (one per 0.2s for 1 hour)
 
-Complete test results with configuration, statistics, and all drift data.
+**See [DRIFT_TEST_OUTPUT_GUIDE.md](DRIFT_TEST_OUTPUT_GUIDE.md) for complete column descriptions**
+
+### 2. Sync Analysis: `sync_analysis_YYYYMMDD_HHMMSS.csv`
+
+Analyzes each sync marker with sample-accurate timing and drift tracking.
+
+**Purpose:** Validate 400 samples between markers, measure drift, identify timing issues
+
+**Key columns (35 total):**
+- Sync identification: `sync_num`, `elapsed_time_s`
+- ICG details: `icg_found`, `icg_position_in_packet`, `icg_calculated_timestamp`, `icg_samples_since_last_sync`, `icg_sample_deviation`
+- ECG details: `ecg_found`, `ecg_position_in_packet`, `ecg_calculated_timestamp`, `ecg_samples_since_last_sync`, `ecg_sample_deviation`
+- Pairing: `paired`, `time_diff_ms`, `drift_cumulative_ms`
+- Anomalies: `anomaly_icg_missing`, `anomaly_icg_sample_count`, `anomaly_time_interval`
+
+**Typical rows:** ~3,600 (one per second)
+
+**See [DRIFT_TEST_OUTPUT_GUIDE.md](DRIFT_TEST_OUTPUT_GUIDE.md) for complete column descriptions**
+
+### 3. Anomaly Report: `anomalies_report_YYYYMMDD_HHMMSS.txt`
+
+Human-readable summary of all detected anomalies with recommendations.
+
+**Sections:**
+- Test summary (configuration, duration, request count)
+- Anomaly statistics (counts by type)
+- Detailed listings (specific sync numbers, request IDs)
+- Recommendations (actionable fixes based on detected patterns)
+
+**Use this first** to get a quick overview of test health
+
+### 4. JSON Results: `icg_ecg_drift_1hour_results_YYYYMMDD_HHMMSS.json`
+
+Complete test results with configuration and anomaly summary for programmatic analysis.
 
 **Structure:**
 ```json
 {
-  "test_name": "ICG-ECG 1-Hour Drift Analysis",
-  "timestamp": "2025-10-28T10:30:00",
+  "test_name": "ICG-ECG 1-Hour Drift Analysis (Enhanced Debug)",
+  "timestamp": "2025-10-28T10:30:00.123456",
   "duration_seconds": 3600,
   "configuration": {
     "icg": {...},
     "ecg": {...},
     "icg_sampling_rate": 400,
     "ecg_sampling_rate": 400,
-    "sync_threshold_ms": 50.0
+    "sync_threshold_ms": 50.0,
+    "data_interval_seconds": 0.2
   },
   "results": {
-    "success": true,
-    "total_sync_marks": 3598,
-    "statistics": {
-      "mean_drift_ms": 3.456,
-      "std_drift_ms": 1.234,
-      "min_drift_ms": 0.123,
-      "max_drift_ms": 8.765,
-      "drift_rate_ms_per_hour": 0.234,
-      "icg_avg_samples_between": 400.12,
-      "icg_std_samples_between": 2.34,
-      "ecg_avg_samples_between": 399.98,
-      "ecg_std_samples_between": 1.87,
-      "expected_samples": 400
-    },
-    "drift_data": [...]
+    "total_requests": 18000,
+    "icg_sync_count": 3595,
+    "ecg_sync_count": 3600,
+    "anomaly_summary": {
+      "missing_icg_syncs": 5,
+      "missing_ecg_syncs": 0,
+      "sample_count_issues_icg": 89,
+      "sample_count_issues_ecg": 0,
+      "multiple_syncs_icg": 23,
+      "multiple_syncs_ecg": 0,
+      "no_data_icg": 0,
+      "no_data_ecg": 0,
+      "time_interval_issues": 10
+    }
+  },
+  "output_files": {
+    "requests_log": "requests_log_20251028_103000.csv",
+    "sync_analysis": "sync_analysis_20251028_103000.csv",
+    "anomaly_report": "anomalies_report_20251028_103000.txt"
   }
 }
 ```
+
+**See [DRIFT_TEST_OUTPUT_GUIDE.md](DRIFT_TEST_OUTPUT_GUIDE.md) for complete JSON structure documentation**
 
 ### From Plotting Script (plot_drift_results.py)
 
@@ -593,6 +630,8 @@ The standard `test_icg_ecg_sync.py` runs 30-second tests across 40 configuration
 
 ## Related Documentation
 
+- **[DRIFT_TEST_OUTPUT_GUIDE.md](DRIFT_TEST_OUTPUT_GUIDE.md) - Complete reference for all output files and columns** ⭐
+- [QUICK_START_DRIFT_TEST.md](QUICK_START_DRIFT_TEST.md) - Fast-track usage guide
 - [CLAUDE.md](CLAUDE.md) - Project overview and build instructions
 - [ICG_ECG_SYNC_COMPLETE_GUIDE.md](ICG_ECG_SYNC_COMPLETE_GUIDE.md) - Complete sync testing guide
 - [TEST_README.md](TEST_README.md) - General test suite documentation

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ICG-ECG 1-Hour Drift Analysis Test
+ICG-ECG 1-Hour Drift Analysis Test - Enhanced Debug Version
 
-This script tests a single ICG/ECG configuration for 1 hour to analyze timing drift
-between the two sensors and validate sample rate consistency.
+This script tests a single ICG/ECG configuration for 1 hour with comprehensive
+debugging to identify timing drift, sample count discrepancies, and missing sync markers.
 
 Test Configuration:
 - ICG: 400 Hz, stimulate_table_index=4, stimulate_frequency=7
@@ -11,11 +11,10 @@ Test Configuration:
 - Duration: 1 hour (3600 seconds)
 - Data request interval: Configurable (default: 0.2 seconds)
 
-Analysis:
-- Drift tracking over time
-- Sample count validation (should be 400 between markers)
-- Statistical analysis of synchronization quality
-- Trend detection (drift increasing/decreasing)
+Enhanced Logging:
+- Request log: Every get_data call with timing
+- Sync analysis: Detailed per-marker analysis
+- Anomaly report: Human-readable summary
 
 Usage:
     python3 test_icg_ecg_drift_1hour.py [host] [threshold_ms] [data_interval_s]
@@ -29,14 +28,12 @@ Examples:
     python3 test_icg_ecg_drift_1hour.py
     python3 test_icg_ecg_drift_1hour.py localhost 50 1.0
     python3 test_icg_ecg_drift_1hour.py localhost 10 0.5
-    python3 test_icg_ecg_drift_1hour.py 192.168.1.100 50 0.3
 
 Output:
-    - CSV file: Detailed per-sync-mark data
-    - JSON file: Complete test results and statistics
-    - Plot 1: Drift over time
-    - Plot 2: Sample count validation
-    - Plot 3: Drift distribution histogram
+    - requests_log_*.csv: Every request/response logged
+    - sync_analysis_*.csv: Detailed per-sync-marker analysis
+    - anomalies_report_*.txt: Human-readable anomaly summary
+    - icg_ecg_drift_1hour_results_*.json: Complete test data
 """
 
 import socket
@@ -64,15 +61,9 @@ def parse_firmware_timestamp(timestamp_str: str) -> float:
         ValueError: If timestamp format is invalid
     """
     try:
-        # Parse the timestamp string (format: "YYYY-MM-DD HH:MM:SS.mmm")
         dt = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S.%f")
-
-        # Convert to Unix timestamp (seconds since epoch)
-        # Firmware uses UTC/GMT (gmtime_r in C++ code)
         unix_timestamp = dt.timestamp()
-
         return unix_timestamp
-
     except ValueError as e:
         raise ValueError(f"Invalid firmware timestamp format '{timestamp_str}': {e}")
 
@@ -113,7 +104,6 @@ class DeviceClient:
             json_str = json.dumps(command) + '\n'
             self.socket.sendall(json_str.encode())
 
-            # Receive response
             response = b''
             while True:
                 chunk = self.socket.recv(4096)
@@ -142,7 +132,7 @@ class DeviceClient:
 
 
 class DriftTester:
-    """Tests long-term drift between ICG and ECG data streams"""
+    """Tests long-term drift between ICG and ECG data streams with comprehensive debugging"""
 
     def __init__(self, host: str = "localhost", sync_threshold_ms: float = 50.0,
                  data_interval_seconds: float = 0.2):
@@ -150,14 +140,12 @@ class DriftTester:
         self.icg_client = DeviceClient(host, 30009, "ICG (MAX30009)")
         self.ecg_client = DeviceClient(host, 1293, "ECG (ADS1293)")
 
-        # Configurable sync threshold (in milliseconds)
+        # Configurable parameters
         self.sync_threshold_ms = sync_threshold_ms
-        self.sync_threshold = sync_threshold_ms / 1000.0  # Convert to seconds
-
-        # Configurable data request interval (in seconds)
+        self.sync_threshold = sync_threshold_ms / 1000.0
         self.data_interval = data_interval_seconds
 
-        # Fixed test configuration
+        # Test configuration
         self.icg_config = {
             "type": "settings",
             "power_enable": True,
@@ -178,22 +166,40 @@ class DriftTester:
             "R3_rate": 16
         }
 
-        # Expected sampling rates
-        self.icg_sampling_rate = 400  # Hz
-        self.ecg_sampling_rate = 400  # Hz (R2=4, R3=16)
-        self.expected_samples_per_interval = 400  # 400 Hz × 1 second
+        self.icg_sampling_rate = 400
+        self.ecg_sampling_rate = 400
+        self.expected_samples_per_interval = 400
+        self.test_duration = 3600
 
-        # Test duration
-        self.test_duration = 3600  # 1 hour in seconds
+        # CSV file handles
+        self.requests_csv_filename = None
+        self.requests_csv_file = None
+        self.requests_csv_writer = None
 
-        # CSV file setup
-        self.csv_filename = None
-        self.csv_file = None
-        self.csv_writer = None
+        self.sync_csv_filename = None
+        self.sync_csv_file = None
+        self.sync_csv_writer = None
 
-        # Results storage
-        self.drift_data = []
+        self.anomaly_report_filename = None
+        self.anomaly_report_file = None
+
+        # Tracking variables
         self.test_start_time = None
+        self.request_counter = 0
+
+        # Anomaly tracking
+        self.anomalies = {
+            'missing_icg_syncs': [],
+            'missing_ecg_syncs': [],
+            'sample_count_icg': [],
+            'sample_count_ecg': [],
+            'time_interval_issues': [],
+            'multiple_syncs_icg': [],
+            'multiple_syncs_ecg': [],
+            'no_data_icg': [],
+            'no_data_ecg': [],
+            'sync_mismatch': []
+        }
 
     def connect_all(self) -> bool:
         """Connect to both devices"""
@@ -254,14 +260,7 @@ class DriftTester:
         return True
 
     def collect_data(self, duration: int = 3600) -> Tuple[List, List]:
-        """Collect data from both sensors for specified duration
-
-        Args:
-            duration: Collection duration in seconds (default: 3600 = 1 hour)
-
-        Returns:
-            Tuple of (icg_data_sets, ecg_data_sets)
-        """
+        """Collect data from both sensors with comprehensive logging"""
         print(f"  Starting data collection for {duration} seconds ({duration/60:.1f} minutes)...")
 
         icg_data_sets = []
@@ -269,387 +268,671 @@ class DriftTester:
 
         start_time = time.time()
         self.test_start_time = start_time
-        iteration = 0
         last_progress_time = start_time
 
         while time.time() - start_time < duration:
-            iteration += 1
+            self.request_counter += 1
 
-            # Get data from both sensors
+            # Request timing
+            request_time_utc = datetime.utcnow()
+            elapsed_time = time.time() - start_time
+
+            # Get ICG data with timing
+            icg_request_start = time.time()
             icg_data = self.icg_client.get_data()
-            ecg_data = self.ecg_client.get_data()
+            icg_response_time_utc = datetime.utcnow()
+            icg_request_duration = (time.time() - icg_request_start) * 1000
 
+            # Get ECG data with timing
+            ecg_request_start = time.time()
+            ecg_data = self.ecg_client.get_data()
+            ecg_response_time_utc = datetime.utcnow()
+            ecg_request_duration = (time.time() - ecg_request_start) * 1000
+
+            # Initialize packet metadata
+            icg_firmware_ts = None
+            icg_packet_samples = 0
+            icg_sync_count = 0
+            icg_sync_numbers = []
+
+            ecg_firmware_ts = None
+            ecg_packet_samples = 0
+            ecg_sync_count = 0
+            ecg_sync_numbers = []
+
+            # Process ICG data
             if icg_data and 'data' in icg_data:
                 try:
                     if 'timestamp' in icg_data:
-                        firmware_timestamp = parse_firmware_timestamp(icg_data['timestamp'])
+                        icg_firmware_ts = parse_firmware_timestamp(icg_data['timestamp'])
                     else:
-                        firmware_timestamp = time.time()
-                        print(f"    Warning: ICG packet missing firmware timestamp")
+                        icg_firmware_ts = time.time()
+
+                    icg_packet_samples = len(icg_data['data'])
+
+                    # Count sync markers
+                    for sample in icg_data['data']:
+                        if isinstance(sample, (list, tuple)) and len(sample) > 0:
+                            if sample[0] == -999990000:
+                                icg_sync_count += 1
+                                if len(sample) >= 2:
+                                    sync_num = sample[1] // 10000
+                                    icg_sync_numbers.append(sync_num)
 
                     icg_data_sets.append({
-                        'timestamp': firmware_timestamp,
-                        'data': icg_data['data']
+                        'timestamp': icg_firmware_ts,
+                        'data': icg_data['data'],
+                        'request_id': self.request_counter,
+                        'request_time_utc': request_time_utc
                     })
-                except ValueError as e:
-                    print(f"    Warning: Failed to parse ICG timestamp: {e}")
-                    icg_data_sets.append({
-                        'timestamp': time.time(),
-                        'data': icg_data['data']
-                    })
+                except Exception as e:
+                    print(f"    Warning: ICG data processing error: {e}")
+            else:
+                self.anomalies['no_data_icg'].append({
+                    'request_id': self.request_counter,
+                    'timestamp': request_time_utc
+                })
 
+            # Process ECG data
             if ecg_data and 'data' in ecg_data:
                 try:
                     if 'timestamp' in ecg_data:
-                        firmware_timestamp = parse_firmware_timestamp(ecg_data['timestamp'])
+                        ecg_firmware_ts = parse_firmware_timestamp(ecg_data['timestamp'])
                     else:
-                        firmware_timestamp = time.time()
-                        print(f"    Warning: ECG packet missing firmware timestamp")
+                        ecg_firmware_ts = time.time()
+
+                    ecg_packet_samples = len(ecg_data['data'])
+
+                    # Count sync markers
+                    for sample in ecg_data['data']:
+                        if isinstance(sample, (list, tuple)) and len(sample) > 0:
+                            if sample[0] == -99999:
+                                ecg_sync_count += 1
+                                if len(sample) >= 2:
+                                    sync_num = sample[1]
+                                    ecg_sync_numbers.append(sync_num)
 
                     ecg_data_sets.append({
-                        'timestamp': firmware_timestamp,
-                        'data': ecg_data['data']
+                        'timestamp': ecg_firmware_ts,
+                        'data': ecg_data['data'],
+                        'request_id': self.request_counter,
+                        'request_time_utc': request_time_utc
                     })
-                except ValueError as e:
-                    print(f"    Warning: Failed to parse ECG timestamp: {e}")
-                    ecg_data_sets.append({
-                        'timestamp': time.time(),
-                        'data': ecg_data['data']
-                    })
+                except Exception as e:
+                    print(f"    Warning: ECG data processing error: {e}")
+            else:
+                self.anomalies['no_data_ecg'].append({
+                    'request_id': self.request_counter,
+                    'timestamp': request_time_utc
+                })
 
-            # Progress indicator every 60 seconds (1 minute)
+            # Check for anomalies
+            if icg_sync_count > 1:
+                self.anomalies['multiple_syncs_icg'].append({
+                    'request_id': self.request_counter,
+                    'timestamp': request_time_utc,
+                    'sync_numbers': icg_sync_numbers
+                })
+                print(f"    ⚠️  ANOMALY: Multiple ICG syncs in request {self.request_counter}: {icg_sync_numbers}")
+
+            if ecg_sync_count > 1:
+                self.anomalies['multiple_syncs_ecg'].append({
+                    'request_id': self.request_counter,
+                    'timestamp': request_time_utc,
+                    'sync_numbers': ecg_sync_numbers
+                })
+                print(f"    ⚠️  ANOMALY: Multiple ECG syncs in request {self.request_counter}: {ecg_sync_numbers}")
+
+            # Log request
+            self.log_request(
+                self.request_counter, request_time_utc, elapsed_time,
+                icg_response_time_utc, icg_request_duration, icg_firmware_ts,
+                icg_packet_samples, icg_sync_count, icg_sync_numbers,
+                ecg_response_time_utc, ecg_request_duration, ecg_firmware_ts,
+                ecg_packet_samples, ecg_sync_count, ecg_sync_numbers
+            )
+
+            # Progress indicator
             current_time = time.time()
             if current_time - last_progress_time >= 60:
                 elapsed = current_time - start_time
                 remaining = duration - elapsed
                 print(f"    Progress: {elapsed/60:.1f}/{duration/60:.1f} min "
-                      f"(ICG: {len(icg_data_sets)} sets, ECG: {len(ecg_data_sets)} sets, "
-                      f"Remaining: {remaining/60:.1f} min)")
+                      f"(Requests: {self.request_counter}, ICG: {len(icg_data_sets)}, "
+                      f"ECG: {len(ecg_data_sets)}, Remaining: {remaining/60:.1f} min)")
                 last_progress_time = current_time
 
-            # Configurable delay between requests
             time.sleep(self.data_interval)
 
-        print(f"  ✓ Data collection complete: ICG={len(icg_data_sets)} sets, ECG={len(ecg_data_sets)} sets")
+        print(f"  ✓ Data collection complete: {self.request_counter} requests, "
+              f"ICG={len(icg_data_sets)} packets, ECG={len(ecg_data_sets)} packets")
         return icg_data_sets, ecg_data_sets
 
-    def extract_sync_marks_with_samples(self, data_sets: List, device_type: str = 'ECG',
-                                       sampling_rate: float = 400) -> List[Tuple]:
-        """Extract sync marks with sample-accurate timestamps and track sample positions
+    def log_request(self, request_id, request_time_utc, elapsed_time_s,
+                   icg_response_time, icg_duration, icg_firmware_ts, icg_samples,
+                   icg_sync_count, icg_sync_nums,
+                   ecg_response_time, ecg_duration, ecg_firmware_ts, ecg_samples,
+                   ecg_sync_count, ecg_sync_nums):
+        """Log a single request to the requests CSV"""
+        if not self.requests_csv_writer:
+            return
 
-        Returns:
-            List of tuples (sync_number, actual_timestamp, position_in_packet,
-                          total_samples_in_packet, packet_index)
+        icg_sync_str = ','.join(map(str, icg_sync_nums)) if icg_sync_nums else ''
+        ecg_sync_str = ','.join(map(str, ecg_sync_nums)) if ecg_sync_nums else ''
+
+        anomaly_multi_icg = icg_sync_count > 1
+        anomaly_multi_ecg = ecg_sync_count > 1
+        anomaly_no_icg = icg_samples == 0
+        anomaly_no_ecg = ecg_samples == 0
+
+        notes = []
+        if anomaly_multi_icg:
+            notes.append(f"Multi-ICG:{icg_sync_str}")
+        if anomaly_multi_ecg:
+            notes.append(f"Multi-ECG:{ecg_sync_str}")
+        if anomaly_no_icg:
+            notes.append("No-ICG")
+        if anomaly_no_ecg:
+            notes.append("No-ECG")
+
+        self.requests_csv_writer.writerow([
+            request_id,
+            request_time_utc.isoformat() if request_time_utc else '',
+            f"{elapsed_time_s:.1f}",
+            icg_response_time.isoformat() if icg_response_time else '',
+            f"{icg_duration:.1f}" if icg_duration is not None else '',
+            f"{icg_firmware_ts:.6f}" if icg_firmware_ts is not None else '',
+            icg_samples,
+            icg_sync_count,
+            icg_sync_str,
+            ecg_response_time.isoformat() if ecg_response_time else '',
+            f"{ecg_duration:.1f}" if ecg_duration is not None else '',
+            f"{ecg_firmware_ts:.6f}" if ecg_firmware_ts is not None else '',
+            ecg_samples,
+            ecg_sync_count,
+            ecg_sync_str,
+            'TRUE' if anomaly_multi_icg else 'FALSE',
+            'TRUE' if anomaly_multi_ecg else 'FALSE',
+            'TRUE' if anomaly_no_icg else 'FALSE',
+            'TRUE' if anomaly_no_ecg else 'FALSE',
+            ';'.join(notes)
+        ])
+        self.requests_csv_file.flush()
+
+    def extract_sync_marks_detailed(self, data_sets: List, device_type: str,
+                                    sampling_rate: float) -> Dict[int, Dict]:
+        """Extract sync marks with comprehensive metadata
+
+        Returns dict: {sync_num: {...metadata...}}
         """
-        sync_marks = []
+        sync_marks = {}
+        magic = -999990000 if device_type == 'ICG' else -99999
 
-        # Different magic numbers for ECG vs ICG
-        ecg_magic = -99999
-        icg_magic = -999990000
-
-        for packet_index, data_set in enumerate(data_sets):
+        for packet_idx, data_set in enumerate(data_sets):
             firmware_timestamp = data_set['timestamp']
             data_array = data_set['data']
             total_samples = len(data_array)
+            request_id = data_set.get('request_id', 0)
+            request_time_utc = data_set.get('request_time_utc', None)
 
             for position, sample in enumerate(data_array):
                 if isinstance(sample, (list, tuple)) and len(sample) > 0:
-                    first_val = sample[0]
-
-                    # Check for ECG sync mark
-                    if device_type == 'ECG' and first_val == ecg_magic:
+                    if sample[0] == magic:
                         if len(sample) >= 2:
-                            sync_num = sample[1]
+                            sync_num = sample[1] // 10000 if device_type == 'ICG' else sample[1]
+
                             # Calculate sample-accurate timestamp
                             samples_after_sync = total_samples - position - 1
                             time_offset = samples_after_sync / sampling_rate
-                            actual_timestamp = firmware_timestamp - time_offset
+                            calculated_timestamp = firmware_timestamp - time_offset
 
-                            sync_marks.append((sync_num, actual_timestamp, position,
-                                             total_samples, packet_index))
-
-                    # Check for ICG sync mark (scaled by 10000)
-                    elif device_type == 'ICG' and first_val == icg_magic:
-                        if len(sample) >= 2:
-                            sync_num = sample[1] // 10000
-                            # Calculate sample-accurate timestamp
-                            samples_after_sync = total_samples - position - 1
-                            time_offset = samples_after_sync / sampling_rate
-                            actual_timestamp = firmware_timestamp - time_offset
-
-                            sync_marks.append((sync_num, actual_timestamp, position,
-                                             total_samples, packet_index))
+                            sync_marks[sync_num] = {
+                                'found': True,
+                                'request_id': request_id,
+                                'request_time_utc': request_time_utc,
+                                'firmware_timestamp': firmware_timestamp,
+                                'position_in_packet': position,
+                                'total_samples_in_packet': total_samples,
+                                'samples_before_sync': position,
+                                'samples_after_sync': samples_after_sync,
+                                'calculated_timestamp': calculated_timestamp,
+                                'packet_index': packet_idx
+                            }
 
         return sync_marks
 
-    def count_samples_between_syncs(self, data_sets: List, sync_marks: List,
-                                   device_type: str = 'ECG') -> Dict:
-        """Count actual samples between consecutive sync marks
+    def analyze_sync_markers(self, icg_data_sets: List, ecg_data_sets: List):
+        """Comprehensive sync marker analysis with CSV logging"""
+        print("  Analyzing sync markers...")
 
-        Args:
-            data_sets: List of data packets
-            sync_marks: List of sync mark tuples (sync_num, timestamp, pos, total, packet_idx)
-            device_type: 'ECG' or 'ICG'
+        # Extract all sync markers with metadata
+        icg_syncs = self.extract_sync_marks_detailed(icg_data_sets, 'ICG', self.icg_sampling_rate)
+        ecg_syncs = self.extract_sync_marks_detailed(ecg_data_sets, 'ECG', self.ecg_sampling_rate)
 
-        Returns:
-            Dict mapping sync_num to sample count between this sync and next sync
-        """
+        print(f"    ICG sync markers found: {len(icg_syncs)}")
+        print(f"    ECG sync markers found: {len(ecg_syncs)}")
+
+        # Get all sync numbers
+        all_sync_nums = sorted(set(icg_syncs.keys()) | set(ecg_syncs.keys()))
+
+        if not all_sync_nums:
+            print("  ✗ No sync markers found")
+            return
+
+        # Calculate sample counts between consecutive syncs
+        icg_sample_counts = self.calculate_samples_between_syncs(icg_data_sets, icg_syncs, 'ICG')
+        ecg_sample_counts = self.calculate_samples_between_syncs(ecg_data_sets, ecg_syncs, 'ECG')
+
+        # Track previous sync for time intervals
+        prev_icg_time = None
+        prev_ecg_time = None
+        cumulative_drift = 0
+
+        # Analyze each sync number
+        for sync_num in all_sync_nums:
+            icg_info = icg_syncs.get(sync_num, {'found': False})
+            ecg_info = ecg_syncs.get(sync_num, {'found': False})
+
+            # Calculate elapsed time
+            if icg_info['found']:
+                elapsed_time = icg_info['calculated_timestamp'] - self.test_start_time
+            elif ecg_info['found']:
+                elapsed_time = ecg_info['calculated_timestamp'] - self.test_start_time
+            else:
+                elapsed_time = 0
+
+            # Sample counts
+            icg_samples_since_last = icg_sample_counts.get(sync_num, None)
+            ecg_samples_since_last = ecg_sample_counts.get(sync_num, None)
+
+            icg_sample_dev = (icg_samples_since_last - self.expected_samples_per_interval) if icg_samples_since_last else None
+            ecg_sample_dev = (ecg_samples_since_last - self.expected_samples_per_interval) if ecg_samples_since_last else None
+
+            # Time intervals
+            icg_time_interval = None
+            ecg_time_interval = None
+
+            if icg_info['found'] and prev_icg_time is not None:
+                icg_time_interval = icg_info['calculated_timestamp'] - prev_icg_time
+                prev_icg_time = icg_info['calculated_timestamp']
+            elif icg_info['found']:
+                prev_icg_time = icg_info['calculated_timestamp']
+
+            if ecg_info['found'] and prev_ecg_time is not None:
+                ecg_time_interval = ecg_info['calculated_timestamp'] - prev_ecg_time
+                prev_ecg_time = ecg_info['calculated_timestamp']
+            elif ecg_info['found']:
+                prev_ecg_time = ecg_info['calculated_timestamp']
+
+            # Pairing analysis
+            paired = icg_info['found'] and ecg_info['found']
+            time_diff_ms = None
+            if paired:
+                time_diff = abs(icg_info['calculated_timestamp'] - ecg_info['calculated_timestamp'])
+                time_diff_ms = time_diff * 1000
+                cumulative_drift += time_diff_ms
+
+            # Anomaly detection
+            anomaly_icg_missing = not icg_info['found'] and sync_num in ecg_syncs
+            anomaly_ecg_missing = not ecg_info['found'] and sync_num in icg_syncs
+            anomaly_icg_sample = icg_sample_dev is not None and abs(icg_sample_dev) > 20
+            anomaly_ecg_sample = ecg_sample_dev is not None and abs(ecg_sample_dev) > 20
+            anomaly_time_interval = (icg_time_interval and abs(icg_time_interval - 1.0) > 0.05) or \
+                                   (ecg_time_interval and abs(ecg_time_interval - 1.0) > 0.05)
+
+            # Track anomalies
+            if anomaly_icg_missing:
+                self.anomalies['missing_icg_syncs'].append(sync_num)
+            if anomaly_ecg_missing:
+                self.anomalies['missing_ecg_syncs'].append(sync_num)
+            if anomaly_icg_sample:
+                self.anomalies['sample_count_icg'].append({'sync_num': sync_num, 'count': icg_samples_since_last})
+            if anomaly_ecg_sample:
+                self.anomalies['sample_count_ecg'].append({'sync_num': sync_num, 'count': ecg_samples_since_last})
+            if anomaly_time_interval:
+                self.anomalies['time_interval_issues'].append({
+                    'sync_num': sync_num,
+                    'icg_interval': icg_time_interval,
+                    'ecg_interval': ecg_time_interval
+                })
+
+            # Build anomaly description
+            anomaly_desc = []
+            if anomaly_icg_missing:
+                anomaly_desc.append("ICG missing")
+            if anomaly_ecg_missing:
+                anomaly_desc.append("ECG missing")
+            if anomaly_icg_sample:
+                anomaly_desc.append(f"ICG samples:{icg_samples_since_last}")
+            if anomaly_ecg_sample:
+                anomaly_desc.append(f"ECG samples:{ecg_samples_since_last}")
+            if anomaly_time_interval:
+                if icg_time_interval:
+                    anomaly_desc.append(f"ICG interval:{icg_time_interval:.3f}s")
+                if ecg_time_interval:
+                    anomaly_desc.append(f"ECG interval:{ecg_time_interval:.3f}s")
+
+            # Write to sync CSV
+            self.write_sync_analysis_row(
+                sync_num, elapsed_time,
+                icg_info, icg_samples_since_last, icg_sample_dev, icg_time_interval,
+                ecg_info, ecg_samples_since_last, ecg_sample_dev, ecg_time_interval,
+                paired, time_diff_ms, cumulative_drift,
+                anomaly_icg_missing, anomaly_ecg_missing,
+                anomaly_icg_sample, anomaly_ecg_sample, anomaly_time_interval,
+                ';'.join(anomaly_desc)
+            )
+
+        print(f"  ✓ Sync analysis complete: {len(all_sync_nums)} markers analyzed")
+
+    def calculate_samples_between_syncs(self, data_sets: List, sync_marks: Dict, device_type: str) -> Dict:
+        """Calculate sample counts between consecutive sync markers"""
+        magic = -999990000 if device_type == 'ICG' else -99999
         sample_counts = {}
 
-        # Magic numbers to identify sync marks
-        ecg_magic = -99999
-        icg_magic = -999990000
-        magic = ecg_magic if device_type == 'ECG' else icg_magic
+        sorted_syncs = sorted(sync_marks.items())
 
-        for i in range(len(sync_marks) - 1):
-            sync_num1, _, pos1, total1, packet_idx1 = sync_marks[i]
-            sync_num2, _, pos2, total2, packet_idx2 = sync_marks[i + 1]
+        for i in range(len(sorted_syncs) - 1):
+            sync_num1, info1 = sorted_syncs[i]
+            sync_num2, info2 = sorted_syncs[i + 1]
 
-            # Count samples between the two sync marks
+            packet_idx1 = info1['packet_index']
+            packet_idx2 = info2['packet_index']
+            pos1 = info1['position_in_packet']
+            pos2 = info2['position_in_packet']
+
             sample_count = 0
 
-            # Case 1: Both syncs in same packet (rare but possible)
+            # Same packet
             if packet_idx1 == packet_idx2:
-                # Samples between pos1 and pos2 (excluding the sync marks themselves)
                 sample_count = pos2 - pos1 - 1
-
-            # Case 2: Syncs in different packets
             else:
-                # Count samples after first sync in its packet
-                sample_count += (total1 - pos1 - 1)
+                # Samples after first sync in its packet
+                sample_count += (info1['total_samples_in_packet'] - pos1 - 1)
 
-                # Count all samples in intermediate packets
+                # All samples in intermediate packets
                 for packet_idx in range(packet_idx1 + 1, packet_idx2):
                     if packet_idx < len(data_sets):
                         data_array = data_sets[packet_idx]['data']
-                        # Count all non-sync samples
                         for sample in data_array:
                             if isinstance(sample, (list, tuple)) and len(sample) > 0:
                                 if sample[0] != magic:
                                     sample_count += 1
 
-                # Count samples before second sync in its packet
+                # Samples before second sync in its packet
                 sample_count += pos2
 
             sample_counts[sync_num1] = sample_count
 
         return sample_counts
 
-    def analyze_drift(self, icg_syncs: List[Tuple], ecg_syncs: List[Tuple],
-                     icg_data_sets: List, ecg_data_sets: List) -> Dict:
-        """Analyze drift between ICG and ECG over time
-
-        Returns detailed drift analysis with sample count validation
-        """
-        # Extract sync dictionaries
-        icg_sync_dict = {sync_num: (timestamp, pos, total, pkt_idx)
-                        for sync_num, timestamp, pos, total, pkt_idx in icg_syncs}
-        ecg_sync_dict = {sync_num: (timestamp, pos, total, pkt_idx)
-                        for sync_num, timestamp, pos, total, pkt_idx in ecg_syncs}
-
-        # Find common sync numbers
-        icg_nums = set(icg_sync_dict.keys())
-        ecg_nums = set(ecg_sync_dict.keys())
-        common_nums = sorted(icg_nums & ecg_nums)
-
-        if not common_nums:
-            return {
-                'success': False,
-                'error': 'No common sync marks found',
-                'drift_data': []
-            }
-
-        # Count samples between sync marks
-        print("  Counting samples between sync marks...")
-        icg_sample_counts = self.count_samples_between_syncs(icg_data_sets, icg_syncs, 'ICG')
-        ecg_sample_counts = self.count_samples_between_syncs(ecg_data_sets, ecg_syncs, 'ECG')
-
-        # Analyze each common sync mark
-        drift_data = []
-        for sync_num in common_nums:
-            icg_time, _, _, _ = icg_sync_dict[sync_num]
-            ecg_time, _, _, _ = ecg_sync_dict[sync_num]
-
-            time_diff = abs(icg_time - ecg_time)
-            elapsed_time = icg_time - self.test_start_time if self.test_start_time else 0
-
-            # Get sample counts
-            icg_samples = icg_sample_counts.get(sync_num, None)
-            ecg_samples = ecg_sample_counts.get(sync_num, None)
-
-            drift_data.append({
-                'sync_num': sync_num,
-                'icg_timestamp': icg_time,
-                'ecg_timestamp': ecg_time,
-                'time_diff_ms': time_diff * 1000,
-                'elapsed_time_s': elapsed_time,
-                'icg_samples_between': icg_samples,
-                'ecg_samples_between': ecg_samples
-            })
-
-        # Calculate statistics using standard Python
-        time_diffs = [d['time_diff_ms'] for d in drift_data]
-
-        mean_drift = sum(time_diffs) / len(time_diffs) if time_diffs else 0
-        min_drift = min(time_diffs) if time_diffs else 0
-        max_drift = max(time_diffs) if time_diffs else 0
-
-        # Calculate standard deviation
-        if len(time_diffs) > 1:
-            variance = sum((x - mean_drift) ** 2 for x in time_diffs) / len(time_diffs)
-            std_drift = variance ** 0.5
-        else:
-            std_drift = 0
-
-        # Simple linear regression for drift trend
-        elapsed_times = [d['elapsed_time_s'] for d in drift_data]
-        if len(elapsed_times) > 1 and len(time_diffs) > 1:
-            # Calculate slope using least squares
-            n = len(elapsed_times)
-            sum_x = sum(elapsed_times)
-            sum_y = sum(time_diffs)
-            sum_xy = sum(x * y for x, y in zip(elapsed_times, time_diffs))
-            sum_xx = sum(x * x for x in elapsed_times)
-
-            slope = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x * sum_x)
-            drift_rate = slope * 3600  # ms per hour
-        else:
-            drift_rate = 0
-
-        # Sample count statistics
-        icg_sample_list = [d['icg_samples_between'] for d in drift_data if d['icg_samples_between'] is not None]
-        ecg_sample_list = [d['ecg_samples_between'] for d in drift_data if d['ecg_samples_between'] is not None]
-
-        icg_avg_samples = sum(icg_sample_list) / len(icg_sample_list) if icg_sample_list else 0
-        ecg_avg_samples = sum(ecg_sample_list) / len(ecg_sample_list) if ecg_sample_list else 0
-
-        # Standard deviation for sample counts
-        if len(icg_sample_list) > 1:
-            icg_variance = sum((x - icg_avg_samples) ** 2 for x in icg_sample_list) / len(icg_sample_list)
-            icg_std_samples = icg_variance ** 0.5
-        else:
-            icg_std_samples = 0
-
-        if len(ecg_sample_list) > 1:
-            ecg_variance = sum((x - ecg_avg_samples) ** 2 for x in ecg_sample_list) / len(ecg_sample_list)
-            ecg_std_samples = ecg_variance ** 0.5
-        else:
-            ecg_std_samples = 0
-
-        return {
-            'success': True,
-            'drift_data': drift_data,
-            'total_sync_marks': len(common_nums),
-            'icg_sync_count': len(icg_syncs),
-            'ecg_sync_count': len(ecg_syncs),
-            'common_sync_count': len(common_nums),
-            'statistics': {
-                'mean_drift_ms': mean_drift,
-                'std_drift_ms': std_drift,
-                'min_drift_ms': min_drift,
-                'max_drift_ms': max_drift,
-                'drift_rate_ms_per_hour': drift_rate,
-                'icg_avg_samples_between': icg_avg_samples,
-                'icg_std_samples_between': icg_std_samples,
-                'ecg_avg_samples_between': ecg_avg_samples,
-                'ecg_std_samples_between': ecg_std_samples,
-                'expected_samples': self.expected_samples_per_interval
-            }
-        }
-
-    def print_plot_instructions(self, csv_filename: str, json_filename: str):
-        """Print instructions for generating plots on local machine"""
-        print("\n" + "="*80)
-        print("PLOT GENERATION")
-        print("="*80)
-        print("Data saved successfully. To generate plots on your local machine:")
-        print(f"\n1. Copy these files to your local machine:")
-        print(f"   - {csv_filename}")
-        print(f"   - {json_filename}")
-        print(f"   - plot_drift_results.py")
-        print(f"\n2. Run the plotting script:")
-        print(f"   python3 plot_drift_results.py {csv_filename}")
-        print(f"\n   Or specify JSON file:")
-        print(f"   python3 plot_drift_results.py {json_filename}")
-        print("\n3. Plots will be generated in the same directory:")
-        print("   - drift_over_time_*.png")
-        print("   - sample_count_validation_*.png")
-        print("   - drift_histogram_*.png")
-        print("="*80)
-
-    def init_csv(self):
-        """Initialize CSV file for logging results"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.csv_filename = f"icg_ecg_drift_1hour_{timestamp}.csv"
-
-        self.csv_file = open(self.csv_filename, 'w', newline='')
-        self.csv_writer = csv.writer(self.csv_file)
-
-        # Write header
-        self.csv_writer.writerow([
-            'sync_num',
-            'icg_timestamp',
-            'ecg_timestamp',
-            'time_diff_ms',
-            'elapsed_time_s',
-            'elapsed_time_min',
-            'icg_samples_between',
-            'ecg_samples_between',
-            'icg_sample_deviation',
-            'ecg_sample_deviation'
-        ])
-        self.csv_file.flush()
-
-        print(f"  CSV log: {self.csv_filename}")
-
-    def write_csv_data(self, drift_data: List[Dict]):
-        """Write drift data to CSV"""
-        if not self.csv_writer:
+    def write_sync_analysis_row(self, sync_num, elapsed_time,
+                                icg_info, icg_samples, icg_sample_dev, icg_interval,
+                                ecg_info, ecg_samples, ecg_sample_dev, ecg_interval,
+                                paired, time_diff_ms, cumulative_drift,
+                                anom_icg_miss, anom_ecg_miss, anom_icg_samp, anom_ecg_samp,
+                                anom_interval, anom_desc):
+        """Write a single row to sync analysis CSV"""
+        if not self.sync_csv_writer:
             return
 
-        print("  Writing data to CSV...")
-        for data_point in drift_data:
-            icg_samples = data_point.get('icg_samples_between', None)
-            ecg_samples = data_point.get('ecg_samples_between', None)
+        self.sync_csv_writer.writerow([
+            sync_num,
+            f"{elapsed_time:.1f}",
+            'TRUE' if icg_info['found'] else 'FALSE',
+            icg_info.get('request_id', ''),
+            icg_info.get('request_time_utc').isoformat() if icg_info.get('request_time_utc') else '',
+            f"{icg_info.get('firmware_timestamp', 0):.6f}" if icg_info['found'] else '',
+            icg_info.get('position_in_packet', ''),
+            icg_info.get('total_samples_in_packet', ''),
+            icg_info.get('samples_before_sync', ''),
+            icg_info.get('samples_after_sync', ''),
+            f"{icg_info.get('calculated_timestamp', 0):.6f}" if icg_info['found'] else '',
+            icg_samples if icg_samples is not None else '',
+            f"{icg_sample_dev:+d}" if icg_sample_dev is not None else '',
+            f"{icg_interval:.3f}" if icg_interval is not None else '',
+            'TRUE' if ecg_info['found'] else 'FALSE',
+            ecg_info.get('request_id', ''),
+            ecg_info.get('request_time_utc').isoformat() if ecg_info.get('request_time_utc') else '',
+            f"{ecg_info.get('firmware_timestamp', 0):.6f}" if ecg_info['found'] else '',
+            ecg_info.get('position_in_packet', ''),
+            ecg_info.get('total_samples_in_packet', ''),
+            ecg_info.get('samples_before_sync', ''),
+            ecg_info.get('samples_after_sync', ''),
+            f"{ecg_info.get('calculated_timestamp', 0):.6f}" if ecg_info['found'] else '',
+            ecg_samples if ecg_samples is not None else '',
+            f"{ecg_sample_dev:+d}" if ecg_sample_dev is not None else '',
+            f"{ecg_interval:.3f}" if ecg_interval is not None else '',
+            'TRUE' if paired else 'FALSE',
+            f"{time_diff_ms:.3f}" if time_diff_ms is not None else '',
+            f"{cumulative_drift:.3f}",
+            'TRUE' if anom_icg_miss else 'FALSE',
+            'TRUE' if anom_ecg_miss else 'FALSE',
+            'TRUE' if anom_icg_samp else 'FALSE',
+            'TRUE' if anom_ecg_samp else 'FALSE',
+            'TRUE' if anom_interval else 'FALSE',
+            anom_desc
+        ])
+        self.sync_csv_file.flush()
 
-            # Calculate deviation from expected
-            icg_deviation = (icg_samples - self.expected_samples_per_interval) if icg_samples is not None else None
-            ecg_deviation = (ecg_samples - self.expected_samples_per_interval) if ecg_samples is not None else None
+    def generate_anomaly_report(self):
+        """Generate human-readable anomaly report"""
+        print("  Generating anomaly report...")
 
-            self.csv_writer.writerow([
-                data_point['sync_num'],
-                f"{data_point['icg_timestamp']:.6f}",
-                f"{data_point['ecg_timestamp']:.6f}",
-                f"{data_point['time_diff_ms']:.3f}",
-                f"{data_point['elapsed_time_s']:.1f}",
-                f"{data_point['elapsed_time_s'] / 60:.2f}",
-                icg_samples if icg_samples is not None else '',
-                ecg_samples if ecg_samples is not None else '',
-                f"{icg_deviation:+d}" if icg_deviation is not None else '',
-                f"{ecg_deviation:+d}" if ecg_deviation is not None else ''
-            ])
+        report = []
+        report.append("="*80)
+        report.append("ICG-ECG DRIFT ANALYSIS - ANOMALY REPORT")
+        report.append("="*80)
+        report.append("")
 
-        self.csv_file.flush()
-        print(f"  ✓ CSV written: {self.csv_filename}")
+        # Test summary
+        report.append("TEST SUMMARY")
+        report.append("-" * 80)
+        report.append(f"Test Start: {datetime.fromtimestamp(self.test_start_time).isoformat()}")
+        report.append(f"Test Duration: {self.test_duration} seconds ({self.test_duration/60:.1f} minutes)")
+        report.append(f"Total Requests: {self.request_counter}")
+        report.append(f"Data Request Interval: {self.data_interval} seconds")
+        report.append(f"ICG Sampling Rate: {self.icg_sampling_rate} Hz")
+        report.append(f"ECG Sampling Rate: {self.ecg_sampling_rate} Hz")
+        report.append("")
 
-    def close_csv(self):
-        """Close CSV file"""
-        if self.csv_file:
-            self.csv_file.close()
-            self.csv_file = None
-            self.csv_writer = None
+        # Anomaly statistics
+        report.append("ANOMALY STATISTICS")
+        report.append("-" * 80)
 
-    def save_json_results(self, analysis_result: Dict) -> str:
-        """Save complete results to JSON file
+        total_anomalies = sum([
+            len(self.anomalies['missing_icg_syncs']),
+            len(self.anomalies['missing_ecg_syncs']),
+            len(self.anomalies['sample_count_icg']),
+            len(self.anomalies['sample_count_ecg']),
+            len(self.anomalies['time_interval_issues']),
+            len(self.anomalies['multiple_syncs_icg']),
+            len(self.anomalies['multiple_syncs_ecg']),
+            len(self.anomalies['no_data_icg']),
+            len(self.anomalies['no_data_ecg'])
+        ])
 
-        Returns:
-            str: Filename of saved JSON file
-        """
+        report.append(f"Total Anomalies Detected: {total_anomalies}")
+        report.append("")
+
+        # Missing sync markers
+        if self.anomalies['missing_icg_syncs']:
+            report.append(f"Missing ICG Sync Markers: {len(self.anomalies['missing_icg_syncs'])}")
+            report.append(f"  Sync numbers: {self.anomalies['missing_icg_syncs'][:50]}")
+            if len(self.anomalies['missing_icg_syncs']) > 50:
+                report.append(f"  ... and {len(self.anomalies['missing_icg_syncs']) - 50} more")
+        else:
+            report.append("Missing ICG Sync Markers: 0")
+
+        if self.anomalies['missing_ecg_syncs']:
+            report.append(f"Missing ECG Sync Markers: {len(self.anomalies['missing_ecg_syncs'])}")
+            report.append(f"  Sync numbers: {self.anomalies['missing_ecg_syncs'][:50]}")
+            if len(self.anomalies['missing_ecg_syncs']) > 50:
+                report.append(f"  ... and {len(self.anomalies['missing_ecg_syncs']) - 50} more")
+        else:
+            report.append("Missing ECG Sync Markers: 0")
+
+        report.append("")
+
+        # Sample count issues
+        if self.anomalies['sample_count_icg']:
+            report.append(f"ICG Sample Count Issues: {len(self.anomalies['sample_count_icg'])}")
+            for issue in self.anomalies['sample_count_icg'][:10]:
+                report.append(f"  Sync {issue['sync_num']}: {issue['count']} samples "
+                            f"(expected {self.expected_samples_per_interval})")
+            if len(self.anomalies['sample_count_icg']) > 10:
+                report.append(f"  ... and {len(self.anomalies['sample_count_icg']) - 10} more")
+        else:
+            report.append("ICG Sample Count Issues: 0")
+
+        if self.anomalies['sample_count_ecg']:
+            report.append(f"ECG Sample Count Issues: {len(self.anomalies['sample_count_ecg'])}")
+            for issue in self.anomalies['sample_count_ecg'][:10]:
+                report.append(f"  Sync {issue['sync_num']}: {issue['count']} samples "
+                            f"(expected {self.expected_samples_per_interval})")
+            if len(self.anomalies['sample_count_ecg']) > 10:
+                report.append(f"  ... and {len(self.anomalies['sample_count_ecg']) - 10} more")
+        else:
+            report.append("ECG Sample Count Issues: 0")
+
+        report.append("")
+
+        # Multiple syncs in packet
+        if self.anomalies['multiple_syncs_icg']:
+            report.append(f"Multiple ICG Syncs in Single Packet: {len(self.anomalies['multiple_syncs_icg'])}")
+            for anomaly in self.anomalies['multiple_syncs_icg'][:10]:
+                report.append(f"  Request {anomaly['request_id']}: {anomaly['sync_numbers']}")
+            if len(self.anomalies['multiple_syncs_icg']) > 10:
+                report.append(f"  ... and {len(self.anomalies['multiple_syncs_icg']) - 10} more")
+        else:
+            report.append("Multiple ICG Syncs in Single Packet: 0")
+
+        if self.anomalies['multiple_syncs_ecg']:
+            report.append(f"Multiple ECG Syncs in Single Packet: {len(self.anomalies['multiple_syncs_ecg'])}")
+            for anomaly in self.anomalies['multiple_syncs_ecg'][:10]:
+                report.append(f"  Request {anomaly['request_id']}: {anomaly['sync_numbers']}")
+            if len(self.anomalies['multiple_syncs_ecg']) > 10:
+                report.append(f"  ... and {len(self.anomalies['multiple_syncs_ecg']) - 10} more")
+        else:
+            report.append("Multiple ECG Syncs in Single Packet: 0")
+
+        report.append("")
+
+        # No data received
+        if self.anomalies['no_data_icg']:
+            report.append(f"No ICG Data Received: {len(self.anomalies['no_data_icg'])} requests")
+        if self.anomalies['no_data_ecg']:
+            report.append(f"No ECG Data Received: {len(self.anomalies['no_data_ecg'])} requests")
+
+        report.append("")
+
+        # Timing issues
+        if self.anomalies['time_interval_issues']:
+            report.append(f"Time Interval Issues: {len(self.anomalies['time_interval_issues'])}")
+            for issue in self.anomalies['time_interval_issues'][:10]:
+                if issue.get('icg_interval'):
+                    report.append(f"  Sync {issue['sync_num']}: ICG interval {issue['icg_interval']:.3f}s")
+                if issue.get('ecg_interval'):
+                    report.append(f"  Sync {issue['sync_num']}: ECG interval {issue['ecg_interval']:.3f}s")
+            if len(self.anomalies['time_interval_issues']) > 10:
+                report.append(f"  ... and {len(self.anomalies['time_interval_issues']) - 10} more")
+        else:
+            report.append("Time Interval Issues: 0")
+
+        report.append("")
+        report.append("="*80)
+        report.append("RECOMMENDATIONS")
+        report.append("="*80)
+
+        if self.anomalies['multiple_syncs_icg'] or self.anomalies['multiple_syncs_ecg']:
+            report.append("- Buffer overflow detected: Multiple sync markers in single packet")
+            report.append("  → Increase firmware buffer size or reduce sampling rate")
+
+        if self.anomalies['sample_count_icg'] or self.anomalies['sample_count_ecg']:
+            report.append("- Sample drops detected: Counts deviate from expected 400")
+            report.append("  → Check firmware buffer management and SPI timing")
+
+        if self.anomalies['missing_icg_syncs'] or self.anomalies['missing_ecg_syncs']:
+            report.append("- Missing sync markers: Gaps in sync number sequence")
+            report.append("  → Check firmware sync injection timing and buffer flow")
+
+        if self.anomalies['time_interval_issues']:
+            report.append("- Timing drift detected: Intervals deviate from 1.0 second")
+            report.append("  → Check system clock stability and timing loops")
+
+        report.append("")
+        report.append("="*80)
+
+        # Write to file
+        with open(self.anomaly_report_filename, 'w') as f:
+            f.write('\n'.join(report))
+
+        print(f"  ✓ Anomaly report saved: {self.anomaly_report_filename}")
+
+    def init_requests_csv(self):
+        """Initialize requests log CSV"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.requests_csv_filename = f"requests_log_{timestamp}.csv"
+        self.requests_csv_file = open(self.requests_csv_filename, 'w', newline='')
+        self.requests_csv_writer = csv.writer(self.requests_csv_file)
+
+        self.requests_csv_writer.writerow([
+            'request_id', 'request_time_utc', 'elapsed_time_s',
+            'icg_response_time_utc', 'icg_request_duration_ms', 'icg_firmware_timestamp',
+            'icg_packet_samples', 'icg_sync_count', 'icg_sync_numbers',
+            'ecg_response_time_utc', 'ecg_request_duration_ms', 'ecg_firmware_timestamp',
+            'ecg_packet_samples', 'ecg_sync_count', 'ecg_sync_numbers',
+            'anomaly_multiple_icg_syncs', 'anomaly_multiple_ecg_syncs',
+            'anomaly_no_icg_data', 'anomaly_no_ecg_data', 'notes'
+        ])
+        self.requests_csv_file.flush()
+        print(f"  Requests log: {self.requests_csv_filename}")
+
+    def init_sync_csv(self):
+        """Initialize sync analysis CSV"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.sync_csv_filename = f"sync_analysis_{timestamp}.csv"
+        self.sync_csv_file = open(self.sync_csv_filename, 'w', newline='')
+        self.sync_csv_writer = csv.writer(self.sync_csv_file)
+
+        self.sync_csv_writer.writerow([
+            'sync_num', 'elapsed_time_s',
+            'icg_found', 'icg_request_id', 'icg_request_time_utc', 'icg_firmware_timestamp',
+            'icg_position_in_packet', 'icg_total_samples_in_packet',
+            'icg_samples_before_sync', 'icg_samples_after_sync', 'icg_calculated_timestamp',
+            'icg_samples_since_last_sync', 'icg_sample_deviation', 'icg_time_since_last_sync',
+            'ecg_found', 'ecg_request_id', 'ecg_request_time_utc', 'ecg_firmware_timestamp',
+            'ecg_position_in_packet', 'ecg_total_samples_in_packet',
+            'ecg_samples_before_sync', 'ecg_samples_after_sync', 'ecg_calculated_timestamp',
+            'ecg_samples_since_last_sync', 'ecg_sample_deviation', 'ecg_time_since_last_sync',
+            'paired', 'time_diff_ms', 'drift_cumulative_ms',
+            'anomaly_icg_missing', 'anomaly_ecg_missing',
+            'anomaly_icg_sample_count', 'anomaly_ecg_sample_count',
+            'anomaly_time_interval', 'anomaly_description'
+        ])
+        self.sync_csv_file.flush()
+        print(f"  Sync analysis log: {self.sync_csv_filename}")
+
+    def init_anomaly_report(self):
+        """Initialize anomaly report file"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.anomaly_report_filename = f"anomalies_report_{timestamp}.txt"
+        print(f"  Anomaly report: {self.anomaly_report_filename}")
+
+    def close_all_files(self):
+        """Close all open files"""
+        if self.requests_csv_file:
+            self.requests_csv_file.close()
+        if self.sync_csv_file:
+            self.sync_csv_file.close()
+
+    def save_json_results(self, icg_syncs_count: int, ecg_syncs_count: int) -> str:
+        """Save complete results to JSON"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"icg_ecg_drift_1hour_results_{timestamp}.json"
 
         output = {
-            'test_name': 'ICG-ECG 1-Hour Drift Analysis',
+            'test_name': 'ICG-ECG 1-Hour Drift Analysis (Enhanced Debug)',
             'timestamp': datetime.now().isoformat(),
             'duration_seconds': self.test_duration,
             'configuration': {
@@ -660,8 +943,27 @@ class DriftTester:
                 'sync_threshold_ms': self.sync_threshold_ms,
                 'data_interval_seconds': self.data_interval
             },
-            'results': analysis_result,
-            'csv_file': self.csv_filename
+            'results': {
+                'total_requests': self.request_counter,
+                'icg_sync_count': icg_syncs_count,
+                'ecg_sync_count': ecg_syncs_count,
+                'anomaly_summary': {
+                    'missing_icg_syncs': len(self.anomalies['missing_icg_syncs']),
+                    'missing_ecg_syncs': len(self.anomalies['missing_ecg_syncs']),
+                    'sample_count_issues_icg': len(self.anomalies['sample_count_icg']),
+                    'sample_count_issues_ecg': len(self.anomalies['sample_count_ecg']),
+                    'multiple_syncs_icg': len(self.anomalies['multiple_syncs_icg']),
+                    'multiple_syncs_ecg': len(self.anomalies['multiple_syncs_ecg']),
+                    'no_data_icg': len(self.anomalies['no_data_icg']),
+                    'no_data_ecg': len(self.anomalies['no_data_ecg']),
+                    'time_interval_issues': len(self.anomalies['time_interval_issues'])
+                }
+            },
+            'output_files': {
+                'requests_log': self.requests_csv_filename,
+                'sync_analysis': self.sync_csv_filename,
+                'anomaly_report': self.anomaly_report_filename
+            }
         }
 
         with open(filename, 'w') as f:
@@ -670,78 +972,30 @@ class DriftTester:
         print(f"  ✓ Results saved to: {filename}")
         return filename
 
-    def print_summary(self, analysis_result: Dict):
-        """Print test summary"""
-        print("\n" + "="*80)
-        print("1-HOUR DRIFT ANALYSIS SUMMARY")
-        print("="*80)
-
-        if not analysis_result['success']:
-            print(f"✗ Test failed: {analysis_result.get('error', 'Unknown error')}")
-            return
-
-        stats = analysis_result['statistics']
-
-        print(f"\nSync Marks:")
-        print(f"  ICG sync marks found: {analysis_result['icg_sync_count']}")
-        print(f"  ECG sync marks found: {analysis_result['ecg_sync_count']}")
-        print(f"  Common sync marks: {analysis_result['common_sync_count']}")
-
-        print(f"\nDrift Statistics:")
-        print(f"  Mean drift: {stats['mean_drift_ms']:.3f} ms")
-        print(f"  Std deviation: {stats['std_drift_ms']:.3f} ms")
-        print(f"  Min drift: {stats['min_drift_ms']:.3f} ms")
-        print(f"  Max drift: {stats['max_drift_ms']:.3f} ms")
-        print(f"  Drift rate: {stats['drift_rate_ms_per_hour']:.3f} ms/hour")
-
-        print(f"\nSample Count Validation:")
-        print(f"  Expected samples between markers: {stats['expected_samples']}")
-        print(f"  ICG average samples: {stats['icg_avg_samples_between']:.1f} "
-              f"(±{stats['icg_std_samples_between']:.1f})")
-        print(f"  ECG average samples: {stats['ecg_avg_samples_between']:.1f} "
-              f"(±{stats['ecg_std_samples_between']:.1f})")
-
-        # Check if drift exceeds threshold
-        if stats['max_drift_ms'] > self.sync_threshold_ms:
-            print(f"\n⚠ WARNING: Max drift ({stats['max_drift_ms']:.3f} ms) exceeds "
-                  f"threshold ({self.sync_threshold_ms} ms)")
-        else:
-            print(f"\n✓ PASS: All drift values within threshold ({self.sync_threshold_ms} ms)")
-
-        # Check sample count accuracy
-        icg_deviation_pct = abs(stats['icg_avg_samples_between'] - stats['expected_samples']) / stats['expected_samples'] * 100
-        ecg_deviation_pct = abs(stats['ecg_avg_samples_between'] - stats['expected_samples']) / stats['expected_samples'] * 100
-
-        if icg_deviation_pct > 5 or ecg_deviation_pct > 5:
-            print(f"⚠ WARNING: Sample count deviates more than 5% from expected")
-            print(f"  ICG deviation: {icg_deviation_pct:.1f}%")
-            print(f"  ECG deviation: {ecg_deviation_pct:.1f}%")
-        else:
-            print(f"✓ PASS: Sample counts within 5% tolerance")
-
-        print("\n" + "="*80)
-
     def run_test(self) -> bool:
-        """Run the complete 1-hour drift test"""
+        """Run the complete 1-hour drift test with enhanced debugging"""
         print("\n" + "="*80)
-        print("ICG-ECG 1-HOUR DRIFT ANALYSIS TEST")
+        print("ICG-ECG 1-HOUR DRIFT ANALYSIS TEST (ENHANCED DEBUG)")
         print("="*80)
         print(f"Test duration: {self.test_duration} seconds ({self.test_duration/60:.1f} minutes)")
         print(f"Sync threshold: {self.sync_threshold_ms} ms")
+        print(f"Data interval: {self.data_interval} seconds")
         print(f"Expected samples between markers: {self.expected_samples_per_interval}")
         print("="*80)
 
-        # Initialize CSV
-        self.init_csv()
+        # Initialize CSV files
+        self.init_requests_csv()
+        self.init_sync_csv()
+        self.init_anomaly_report()
 
         # Connect to devices
         if not self.connect_all():
             print("✗ Failed to connect to devices. Exiting.")
-            self.close_csv()
+            self.close_all_files()
             return False
 
         try:
-            # Stop devices and flush buffers
+            # Prepare devices
             print("\nPreparing devices...")
             print("  Stopping devices...")
             self.stop_icg()
@@ -763,38 +1017,34 @@ class DriftTester:
             print("\nStarting data collection...")
             icg_data, ecg_data = self.collect_data(duration=self.test_duration)
 
-            # Extract sync marks
-            print("\nAnalyzing sync marks with sample-accurate timing...")
-            icg_syncs = self.extract_sync_marks_with_samples(icg_data, device_type='ICG',
-                                                            sampling_rate=self.icg_sampling_rate)
-            ecg_syncs = self.extract_sync_marks_with_samples(ecg_data, device_type='ECG',
-                                                            sampling_rate=self.ecg_sampling_rate)
+            # Analyze sync markers (writes to sync_analysis CSV)
+            print("\nAnalyzing sync markers...")
+            self.analyze_sync_markers(icg_data, ecg_data)
 
-            print(f"  ICG sync marks found: {len(icg_syncs)}")
-            print(f"  ECG sync marks found: {len(ecg_syncs)}")
-
-            # Analyze drift
-            print("\nAnalyzing drift and sample counts...")
-            analysis_result = self.analyze_drift(icg_syncs, ecg_syncs, icg_data, ecg_data)
-
-            # Write to CSV
-            if analysis_result['success']:
-                self.write_csv_data(analysis_result['drift_data'])
+            # Generate anomaly report
+            self.generate_anomaly_report()
 
             # Save JSON results
             print("\nSaving results...")
-            json_filename = self.save_json_results(analysis_result)
+            icg_syncs = self.extract_sync_marks_detailed(icg_data, 'ICG', self.icg_sampling_rate)
+            ecg_syncs = self.extract_sync_marks_detailed(ecg_data, 'ECG', self.ecg_sampling_rate)
+            json_filename = self.save_json_results(len(icg_syncs), len(ecg_syncs))
 
             # Print summary
-            self.print_summary(analysis_result)
+            print("\n" + "="*80)
+            print("TEST COMPLETE")
+            print("="*80)
+            print(f"\nOutput files generated:")
+            print(f"  1. {self.requests_csv_filename} - Request log ({self.request_counter} requests)")
+            print(f"  2. {self.sync_csv_filename} - Sync analysis")
+            print(f"  3. {self.anomaly_report_filename} - Anomaly report")
+            print(f"  4. {json_filename} - JSON results")
+            print("\n" + "="*80)
 
-            # Print instructions for generating plots locally
-            self.print_plot_instructions(self.csv_filename, json_filename)
-
-            return analysis_result['success']
+            return True
 
         except KeyboardInterrupt:
-            print("\n\n⚠ Test interrupted by user (Ctrl+C)")
+            print("\n\n⚠️  Test interrupted by user (Ctrl+C)")
             print("Saving partial results...")
             return False
         except Exception as e:
@@ -803,7 +1053,7 @@ class DriftTester:
             traceback.print_exc()
             return False
         finally:
-            self.close_csv()
+            self.close_all_files()
             self.disconnect_all()
 
 
@@ -812,8 +1062,8 @@ def main():
 
     # Parse command line arguments
     host = "localhost"
-    sync_threshold_ms = 50.0  # Default: 50ms
-    data_interval_seconds = 0.2  # Default: 0.2 seconds
+    sync_threshold_ms = 50.0
+    data_interval_seconds = 0.2
 
     if len(sys.argv) > 1:
         host = sys.argv[1]
