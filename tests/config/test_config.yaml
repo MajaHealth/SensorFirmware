@@ -1,0 +1,66 @@
+# Service connection configuration
+services:
+  ads1293:
+    host: "127.0.0.1"
+    port: 1293
+  max30009:
+    host: "127.0.0.1"
+    port: 30009
+  ws2812:
+    host: "127.0.0.1"
+    port: 2812
+  power:
+    host: "127.0.0.1"
+    port: 501
+
+# Hardware test parameters
+max30009_bca:
+  sampling_frequency: 400
+  current_ua: 64
+  frequencies_khz: [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 300, 450]
+  duration_per_freq_sec: 5
+  polling_interval_sec: 0.5
+
+max30009_icg:
+  sampling_frequency: 400
+  current_ua: 1.28
+  stim_frequency_khz: 20
+  resistor_loads_ohm: [20, 100, 200, 300]
+  duration_sec: 60
+  long_duration_sec: 3600
+  polling_interval_sec: 0.5
+
+ads1293_ecg:
+  sampling_frequency: 400
+  r2_rate: 4
+  r3_rate: 128
+  bpm_values: [30, 60, 120, 180]
+  duration_sec: 60
+  long_duration_sec: 3600
+  polling_interval_sec: 0.5
+
+# Pass/fail thresholds
+thresholds:
+  max30009:
+    impedance_max_ohm: 3
+    resistance_mae_ohm: 2
+    reactance_mae_ohm: 1
+    phase_angle_mae_deg: 0.2
+
+  ads1293:
+    voltage_error_low_uv: 25        # for ref ≤ 500 µV
+    voltage_error_high_uv: 40       # for ref > 500 µV
+    voltage_error_high_pct: 5
+    bpm_error_absolute: 3
+    bpm_error_pct: 1
+
+  sampling:
+    frequency_error_hz: 1
+    sync_counter_tolerance_ms: 50
+
+# Output paths (on CM4)
+output:
+  results_dir: "/tmp/test-results"
+  data_dir: "/tmp/test-results/data"
+  plots_dir: "/tmp/test-results/plots"
+  logs_dir: "/tmp/test-results/logs"

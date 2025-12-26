@@ -51,10 +51,11 @@ add_executable(${SERVICE_NAME} ${SPI_SERVICE_SOURCES})
 target_include_directories(${SERVICE_NAME} PRIVATE ${SPI_SERVICE_INCLUDES})
 
 # Link libraries
-target_link_libraries(${SERVICE_NAME} 
-    PRIVATE 
+target_link_libraries(${SERVICE_NAME}
+    PRIVATE
         ws281x
         Threads::Threads
+        gpiod
         rt
         m
 )
@@ -89,8 +90,8 @@ install(TARGETS ${SERVICE_NAME}
 # Install calibration files
 install(DIRECTORY calib/
     DESTINATION /opt/sensor-firmware/calib
-    FILES_MATCHING PATTERN "*.json"
     COMPONENT spi-service
+    FILES_MATCHING PATTERN "*.json"
 )
 
 # Post-build: Generate hash

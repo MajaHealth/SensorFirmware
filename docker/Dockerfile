@@ -7,7 +7,10 @@ FROM debian:bookworm-slim AS builder
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
-# Install build dependencies with pinned versions
+# Enable armhf architecture
+RUN dpkg --add-architecture armhf
+
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc-arm-linux-gnueabihf \
     g++-arm-linux-gnueabihf \
@@ -16,7 +19,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     file \
     libc6-dev-armhf-cross \
     linux-libc-dev-armhf-cross \
+    libc6:armhf \
+    libc6-dev:armhf \
     libi2c-dev:armhf \
+    libgpiod-dev:armhf \
     coreutils \
     && rm -rf /var/lib/apt/lists/*
 

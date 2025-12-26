@@ -1,0 +1,15 @@
+[pytest]
+testpaths = .
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+addopts =
+    -v
+    --tb=short
+    --strict-markers
+markers =
+    tcp: TCP protocol tests
+    json: JSON command tests
+    sensors: Sensor integration tests
+    stress: Stress tests
+    slow: Tests that take significant time

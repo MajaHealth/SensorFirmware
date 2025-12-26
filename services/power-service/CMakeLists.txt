@@ -30,9 +30,10 @@ add_executable(${SERVICE_NAME} ${POWER_SERVICE_SOURCES})
 target_include_directories(${SERVICE_NAME} PRIVATE ${POWER_SERVICE_INCLUDES})
 
 # Link libraries
-target_link_libraries(${SERVICE_NAME} 
-    PRIVATE 
+target_link_libraries(${SERVICE_NAME}
+    PRIVATE
         Threads::Threads
+        gpiod
         i2c
         rt
         m
