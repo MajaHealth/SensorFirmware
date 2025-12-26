@@ -50,10 +50,10 @@ docker build --target artifacts -t sensor-firmware-build -f docker/Dockerfile . 
 
 # Extract artifacts
 log_info "Extracting build artifacts..."
-docker create --name temp-container sensor-firmware-build
+# Build the 'build' stage to extract binaries (scratch images can't be extracted directly)
+docker build --target build -t sensor-firmware-build-stage -f docker/Dockerfile . > /dev/null 2>&1
 mkdir -p build-output/bin
-docker cp temp-container:/build/bin/. build-output/bin/
-docker rm temp-container
+docker run --rm sensor-firmware-build-stage tar -C /work/build-output/bin -c . | tar -C build-output/bin -x
 
 log_info "✓ Build complete"
 
