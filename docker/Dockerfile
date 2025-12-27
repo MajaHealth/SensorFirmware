@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for Sensor Firmware Build
-# Target: Raspberry Pi CM4 (ARM)
+# Target: Raspberry Pi CM4 (ARM64/aarch64)
 
 FROM debian:bookworm-slim AS builder
 
@@ -7,22 +7,22 @@ FROM debian:bookworm-slim AS builder
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
-# Enable armhf architecture
-RUN dpkg --add-architecture armhf
+# Enable arm64 architecture
+RUN dpkg --add-architecture arm64
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc-arm-linux-gnueabihf \
-    g++-arm-linux-gnueabihf \
+    gcc-aarch64-linux-gnu \
+    g++-aarch64-linux-gnu \
     cmake \
     make \
     file \
-    libc6-dev-armhf-cross \
-    linux-libc-dev-armhf-cross \
-    libc6:armhf \
-    libc6-dev:armhf \
-    libi2c-dev:armhf \
-    libgpiod-dev:armhf \
+    libc6-dev-arm64-cross \
+    linux-libc-dev-arm64-cross \
+    libc6:arm64 \
+    libc6-dev:arm64 \
+    libi2c-dev:arm64 \
+    libgpiod-dev:arm64 \
     coreutils \
     && rm -rf /var/lib/apt/lists/*
 
@@ -37,7 +37,7 @@ ENV SOURCE_DATE_EPOCH=1609459200
 
 # Display toolchain info
 RUN echo "=== Toolchain Info ===" && \
-    arm-linux-gnueabihf-gcc --version && \
+    aarch64-linux-gnu-gcc --version && \
     cmake --version
 
 # Build stage

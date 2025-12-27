@@ -54,6 +54,12 @@ cmake --build build-output --target generate-sbom
 
 # Build and deploy pipeline (requires Pi configuration)
 ./scripts/build-and-deploy.sh
+
+# Build, deploy, and run tests on CM4
+PI_IP=192.168.1.21 RUN_TESTS=1 ./scripts/build-and-deploy.sh
+
+# Run specific test filter
+PI_IP=192.168.1.21 RUN_TESTS=1 TEST_FILTER="test_ads1293_api.py" ./scripts/build-and-deploy.sh
 ```
 
 ## Testing Commands
@@ -100,9 +106,18 @@ ctest -R GPIO        # All GPIO tests
 ctest -R MAX30009    # All MAX30009 tests
 ctest -R ADS1293     # All ADS1293 tests
 
+# Run a single test by name
+ctest -R test_ADS1293_lib --output-on-failure
+
 # Run pytest directly with more options
 pytest ../services/spi-service/tests/integration/ -v
 pytest ../services/power-service/tests/integration/ -v
+
+# Run a single pytest file
+pytest ../tests/fw-app-integration/test_ads1293_api.py -v
+
+# Run a single test function
+pytest ../tests/fw-app-integration/test_ads1293_api.py::test_ads1293_settings_configuration -v
 
 # Run pytest with markers
 pytest -m tcp        # Only TCP protocol tests
@@ -123,6 +138,16 @@ Tests are organized per service:
 - `services/power-service/tests/unit/` - C++ unit tests (gtest)
 - `services/power-service/tests/integration/` - Python integration tests (pytest)
 - `tests/` - System-level integration tests
+- `tests/common/tcp_client.py` - Reusable TCP client for test fixtures
+
+### Mock Drivers
+
+Mock implementations in `services/*/tests/mocks/` enable unit testing without hardware:
+- `mock_SPI_driver.h/cpp` - Simulates SPI transactions
+- `mock_GPIO_driver.h/cpp` - Simulates GPIO state
+- `mock_SMBus_driver.h/cpp` - Simulates I2C/SMBus (power-service)
+
+Build with mocks: `cmake -DBUILD_TESTS=ON -DENABLE_MOCKS=ON`
 
 ## Architecture
 
@@ -274,6 +299,23 @@ Ports are hardcoded per service and device:
 - ADS1293: 1293
 - MAX30009: 30009
 - WS2812: 2812
+
+### JSON API Quick Reference
+
+All services use newline-delimited JSON over TCP. Common request patterns:
+
+```json
+// Get current settings
+{"type": "get_settings"}
+
+// Configure sensor (ADS1293 example)
+{"type": "settings", "enable_conversion": true, "power_enable": true}
+
+// Get sensor data
+{"type": "get_data"}
+```
+
+Responses include `"type"` field indicating response type. See `docs/COMPLETE_JSON_API_REFERENCE.md` for full API documentation.
 
 ## Version Management
 

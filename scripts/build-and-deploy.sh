@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-PI_IP="${PI_IP:-192.168.1.4}"
+PI_IP="${PI_IP:-192.168.1.21}"
 PI_USER="${PI_USER:-pi}"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_TESTS="${RUN_TESTS:-0}"
@@ -71,8 +71,13 @@ done
 log_step "[3/4] Deploying to CM4..."
 log_info "Deploying binaries to ${PI_USER}@${PI_IP}:/opt/sensor-firmware/bin/..."
 
+# Stop any running services before deployment
+log_info "Stopping any running services..."
+ssh -t ${PI_USER}@${PI_IP} "sudo pkill -f 'spi-service|power-service' 2>/dev/null; exit 0" || true
+sleep 1
+
 # Create directory on CM4
-ssh ${PI_USER}@${PI_IP} "mkdir -p /opt/sensor-firmware/bin"
+ssh -t ${PI_USER}@${PI_IP} "sudo mkdir -p /opt/sensor-firmware/bin && sudo chown -R ${PI_USER}:${PI_USER} /opt/sensor-firmware" || true
 
 # Copy binaries
 scp ${PROJECT_ROOT}/build-output/bin/*-service ${PI_USER}@${PI_IP}:/opt/sensor-firmware/bin/
@@ -103,13 +108,30 @@ if [ "$RUN_TESTS" = "1" ]; then
 
     log_info "✓ Tests transferred"
 
-    # Check if pytest is installed
-    log_info "Checking pytest installation on CM4..."
-    if ! ssh ${PI_USER}@${PI_IP} "which pytest 2>/dev/null"; then
-        log_warn "pytest not found, installing dependencies..."
-        ssh ${PI_USER}@${PI_IP} "pip3 install -r /tmp/sensor-tests/requirements.txt"
-        log_info "✓ Dependencies installed"
-    fi
+    # Setup Python virtual environment and install dependencies
+    log_info "Setting up Python environment on CM4..."
+    ssh ${PI_USER}@${PI_IP} "
+        if [ ! -d /tmp/sensor-venv ]; then
+            python3 -m venv /tmp/sensor-venv
+        fi
+        source /tmp/sensor-venv/bin/activate
+        pip install --quiet -r /tmp/sensor-tests/requirements.txt
+    "
+    log_info "✓ Python environment ready"
+
+    # Start services before running tests
+    log_info "Starting services on CM4..."
+    ssh ${PI_USER}@${PI_IP} "
+        sudo nohup /opt/sensor-firmware/bin/spi-service > /tmp/spi-service.log 2>&1 &
+        sudo nohup /opt/sensor-firmware/bin/power-service > /tmp/power-service.log 2>&1 &
+    "
+    sleep 3  # Wait for services to initialize
+
+    # Verify services are running
+    log_info "Verifying services..."
+    ssh ${PI_USER}@${PI_IP} "pgrep -f spi-service && echo 'spi-service running' || echo 'spi-service NOT running'"
+    ssh ${PI_USER}@${PI_IP} "pgrep -f power-service && echo 'power-service running' || echo 'power-service NOT running'"
+    log_info "✓ Services started"
 
     # Run pytest on CM4
     if [ -n "$TEST_FILTER" ]; then
@@ -124,6 +146,7 @@ if [ "$RUN_TESTS" = "1" ]; then
     echo ""
 
     ssh -t ${PI_USER}@${PI_IP} "
+        source /tmp/sensor-venv/bin/activate && \
         cd /tmp/sensor-tests && \
         pytest ${TEST_FILTER:-.} \
             --html=/tmp/test-results/test_report.html \
@@ -147,9 +170,13 @@ if [ "$RUN_TESTS" = "1" ]; then
 
     log_info "✓ Results saved to: ${RESULTS_DIR}"
 
-    # Cleanup CM4
-    log_info "Cleaning up CM4..."
-    ssh ${PI_USER}@${PI_IP} "rm -rf /tmp/sensor-tests /tmp/test-results"
+    # Stop services and cleanup CM4
+    log_info "Stopping services and cleaning up CM4..."
+    ssh -t ${PI_USER}@${PI_IP} "
+        sudo pkill -f 'spi-service|power-service' 2>/dev/null || true
+        rm -rf /tmp/sensor-tests /tmp/test-results /tmp/sensor-venv /tmp/spi-service.log /tmp/power-service.log
+        exit 0
+    " || true
     log_info "✓ Cleanup complete"
 
     # Display results summary
