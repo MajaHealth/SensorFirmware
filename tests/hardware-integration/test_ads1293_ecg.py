@@ -111,7 +111,6 @@ def test_ads1293_ecg_60s(test_config, results_dir):
 
             # Get data
             response = get_sensor_data(client)
-
             if response["type"] == "data":
                 # Save to logger
                 logger.write_data(

@@ -2,7 +2,7 @@
 Helper functions for common sensor operations
 """
 from typing import Dict, Any
-from .tcp_client import TCPClient
+from tcp_client import TCPClient
 
 
 def configure_ads1293(client: TCPClient, sampling_freq: int = 400,

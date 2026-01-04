@@ -1,0 +1,37 @@
+LEDStrip: Initialized successfully.
+JSON Server started on port 1293
+JSON Server started on port 30009
+start server loop
+JSON Server started on port 2812
+start server loop
+start server loop
+Connection accepted from 127.0.0.1:50424
+Server: Received command: '{"type": "settings", "enable_conversion": true, "power_enable": true, "R2_rate": 4, "R3_rate": 128}
+'
+IN:{"type": "settings", "enable_conversion": true, "power_enable": true, "R2_rate": 4, "R3_rate": 128}
+
+
+Sending to client: '{"R2_rate":4,"R3_rate":128,"enable_conversion":true,"power_enable":true,"type":"actual_settings"}'
+Client disconnected.
+Connection accepted from 127.0.0.1:50434
+Server: Received command: '{"type": "settings", "enable_conversion": true, "power_enable": true}
+'
+IN:{"type": "settings", "enable_conversion": true, "power_enable": true}
+
+
+Sending to client: '{"R2_rate":4,"R3_rate":128,"enable_conversion":true,"power_enable":true,"type":"actual_settings"}'
+Server: Received command: '{"type": "get_data"}
+'
+IN:{"type": "get_data"}
+
+
+Sending to client: '{"data":[[-99999,1,0],[-99999,2,0],[-99999,3,0],[-99999,4,0],[-99999,5,0],[-99999,6,0],[-99999,7,0],[-99999,8,0],[-99999,9,0],[-99999,10,0],[-99999,11,0],[-99999,12,0],[-99999,13,0],[4194932,4579507,5098129],[4194985,5858837,5105099],[-99999,14,0],[4195369,4775392,5103681],[4195376,4774536,5102549],[4195376,4771579,5101259],[4195362,4768452,5099968],[4195358,4765279,5098745],[4195368,4747240,5094690],[4195374,4722305,5090642],[4195364,4715304,5089316],[4195381,4696447,5085369],[4195376,4681716,5083331],[4195374,4641828,5079596],[4195360,4617688,5077242],[4195331,4583583,5072358],[4195366,4556301,5069418],[4195369,4520034,5066868],[4195379,4458046,5062307],[4195368,4437433,5060649],[4195384,4359533,5055830],[-99999,15,0],[4195349,4203930,5052845],[4195339,4194282,5050765],[4195345,4194281,5049337],[4195362,4194277,5043037],[4195360,4194281,5040690],[4195343,4194282,5036886],[4195347,4194279,5035237],[4195312,4194280,5032299],[4195328,4194283,5030427],[4195318,4194284,5024917],[4195307,4194283,5023867],[4195349,4194281,5019522],[4195359,4194282,5017726],[4195355,4194287,5015532],[4195353,4194282,5008873],[4195348,4194285,4999479],[4195352,4194282,4993240],[4195363,4194283,4977425],[4195346,4194279,4969922],[-99999,16,0],[4195310,4194282,4953880],[4195338,4194285,4947275],[4195348,4194288,4936837],[4195259,4194283,4929008],[4195223,4194284,4925255]],"data_size":60,"timestamp":"2026-01-04 07:20:17.114","type":"data"}'
+Client disconnected.
+Connection accepted from 127.0.0.1:50444
+Server: Received command: '{"type": "settings", "power_enable": false}
+'
+IN:{"type": "settings", "power_enable": false}
+
+
+Sending to client: '{"R2_rate":4,"R3_rate":128,"enable_conversion":true,"power_enable":false,"type":"actual_settings"}'
+Client disconnected.

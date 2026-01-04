@@ -30,6 +30,15 @@ class TCPClient:
         self.socket.settimeout(self.timeout)
         self.socket.connect((self.host, self.port))
 
+        # Server sends "Connection accepted\n" greeting, read and discard it
+        greeting = b''
+        while b'\n' not in greeting:
+            chunk = self.socket.recv(4096)
+            if not chunk:
+                break
+            greeting += chunk
+        # Greeting received and discarded
+
     def disconnect(self):
         """Close connection to service."""
         if self.socket:
@@ -51,6 +60,7 @@ class TCPClient:
         self.socket.sendall(request_str.encode('utf-8'))
 
         # Receive response
+        time.sleep(0.15)
         response_data = b''
         while b'\n' not in response_data:
             chunk = self.socket.recv(4096)

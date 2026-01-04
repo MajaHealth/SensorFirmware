@@ -176,16 +176,21 @@ def test_ads1293_power_off(test_config):
 
     with TCPClient(ads_config['host'], ads_config['port']) as client:
 
-        print(f"\n[Step 1] Sending poweroff request...")
-        request = {"type": "poweroff"}
+        print(f"\n[Step 1] Sending power off request...")
+        request = {
+            "type": "settings",
+            "power_enable": False
+        }
         response = client.send(request)
 
         print(f"  Response: {response}")
 
         print(f"\n[Step 2] Validating response...")
-        assert response["type"] == "power_is_off", \
-            f"Expected 'power_is_off', got '{response['type']}'"
-        print("  ✓ Power off confirmed")
+        assert response["type"] == "actual_settings", \
+            f"Expected 'actual_settings', got '{response['type']}'"
+        assert response["power_enable"] == False, \
+            f"Expected power_enable=False, got {response['power_enable']}"
+        print("  ✓ Power disabled successfully")
 
     print(f"\n{'='*60}")
     print(f"✓ Test PASSED: ADS1293 powered off successfully")

@@ -11,7 +11,16 @@ def test_config():
     """Load test configuration from YAML file."""
     config_path = Path(__file__).parent / "config" / "test_config.yaml"
     with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+
+    # Allow overriding service host via environment variable
+    # This enables remote testing without modifying YAML
+    target_host = os.getenv('PI_TARGET_IP')
+    if target_host:
+        for service in config['services'].values():
+            service['host'] = target_host
+
+    return config
 
 @pytest.fixture(scope="session")
 def results_dir(tmp_path_factory):

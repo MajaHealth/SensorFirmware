@@ -149,6 +149,55 @@ Mock implementations in `services/*/tests/mocks/` enable unit testing without ha
 
 Build with mocks: `cmake -DBUILD_TESTS=ON -DENABLE_MOCKS=ON`
 
+### Remote Testing (Run from Laptop)
+
+Run tests from your laptop connecting to Pi over network (no SSH, no venv on Pi):
+
+```bash
+# First time: Script auto-creates venv and installs dependencies
+./scripts/run-tests-remote.sh 192.168.29.175
+
+# Restart services before testing (kills old instances, starts fresh)
+./scripts/run-tests-remote.sh 192.168.29.175 --restart-services
+
+# Run specific tests
+./scripts/run-tests-remote.sh 192.168.29.175 tests/fw-app-integration/test_ads1293_api.py
+./scripts/run-tests-remote.sh 192.168.29.175 tests/fw-app-integration/test_ads1293_api.py::test_ads1293_settings_configuration
+
+# Run by marker
+./scripts/run-tests-remote.sh 192.168.29.175 -m quick
+./scripts/run-tests-remote.sh 192.168.29.175 -m ads1293
+
+# Run with pytest options
+./scripts/run-tests-remote.sh 192.168.29.175 tests/ -vv --maxfail=1
+
+# Restart services and run quick tests
+./scripts/run-tests-remote.sh 192.168.29.175 --restart-services -m quick
+
+# Or use convenience wrapper
+PI_IP=192.168.29.175 ./scripts/test.sh
+./scripts/test.sh tests/fw-app-integration/  # Uses default IP
+```
+
+**Requirements:**
+- Firmware services must be running on Pi
+- Pi must be on same network as laptop
+- Ports 1293, 30009, 2812, 501 must be accessible
+
+**How it works:**
+- Tests run ON your laptop (not on Pi)
+- Tests send TCP commands to Pi over network
+- Pi runs firmware services only
+- Results saved locally on laptop
+
+**Benefits:**
+- ✅ Much faster (no file transfers, no remote venv)
+- ✅ Results saved directly on laptop
+- ✅ One-time venv setup on laptop
+- ✅ Full pytest argument support (files, functions, markers, options)
+- ✅ Supports individual test files and specific test functions
+- ✅ Optional `--restart-services` flag to ensure testing against fresh deployment
+
 ## Architecture
 
 ### Service-Based Design

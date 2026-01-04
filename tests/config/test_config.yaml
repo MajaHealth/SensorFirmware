@@ -33,11 +33,11 @@ max30009_icg:
 ads1293_ecg:
   sampling_frequency: 400
   r2_rate: 4
-  r3_rate: 128
+  r3_rate: 16
   bpm_values: [30, 60, 120, 180]
   duration_sec: 60
   long_duration_sec: 3600
-  polling_interval_sec: 0.5
+  polling_interval_sec: 1.0
 
 # Pass/fail thresholds
 thresholds:

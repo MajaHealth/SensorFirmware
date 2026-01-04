@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-PI_IP="${PI_IP:-192.168.1.21}"
+PI_IP="${PI_IP:-192.168.29.175}"
 PI_USER="${PI_USER:-pi}"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_TESTS="${RUN_TESTS:-0}"
@@ -82,11 +82,23 @@ ssh -t ${PI_USER}@${PI_IP} "sudo mkdir -p /opt/sensor-firmware/bin && sudo chown
 # Copy binaries
 scp ${PROJECT_ROOT}/build-output/bin/*-service ${PI_USER}@${PI_IP}:/opt/sensor-firmware/bin/
 
-log_info "✓ Deployment complete"
+log_info "Deployment complete"
 
 # Step 4: Run tests (if enabled)
 if [ "$RUN_TESTS" = "1" ]; then
     log_step "[4/4] Running Hardware Tests on CM4..."
+
+    echo ""
+    log_warn "IMPORTANT: Make sure the firmware services are running on CM4!"
+    echo ""
+    echo "On CM4, run:"
+    echo "  cd /opt/sensor-firmware/bin"
+    echo "Current directory: $(pwd)"
+    echo "  ./spi-service &"
+    echo "  ./power-service &"
+    echo ""
+    read -p "Press ENTER when services are running and ready for testing..."
+    echo ""
 
     # Create results directory with timestamp
     TIMESTAMP=$(date +%Y%m%d-%H%M%S)
@@ -121,10 +133,12 @@ if [ "$RUN_TESTS" = "1" ]; then
 
     # Start services before running tests
     log_info "Starting services on CM4..."
-    ssh ${PI_USER}@${PI_IP} "
-        sudo nohup /opt/sensor-firmware/bin/spi-service > /tmp/spi-service.log 2>&1 &
-        sudo nohup /opt/sensor-firmware/bin/power-service > /tmp/power-service.log 2>&1 &
-    "
+    ssh ${PI_USER}@${PI_IP} "bash -c '
+        cd /opt/sensor-firmware/bin
+        sudo nohup ./spi-service > /tmp/spi-service.log 2>&1 < /dev/null &
+        sudo nohup ./power-service > /tmp/power-service.log 2>&1 < /dev/null &
+        sleep 1
+    '"
     sleep 3  # Wait for services to initialize
 
     # Verify services are running
@@ -169,6 +183,15 @@ if [ "$RUN_TESTS" = "1" ]; then
         "${RESULTS_DIR}/"
 
     log_info "✓ Results saved to: ${RESULTS_DIR}"
+
+    # Fetch service logs for debugging
+    log_info "Fetching service logs..."
+    rsync -avz --quiet \
+        ${PI_USER}@${PI_IP}:/tmp/spi-service.log \
+        "${RESULTS_DIR}/" 2>/dev/null || true
+    rsync -avz --quiet \
+        ${PI_USER}@${PI_IP}:/tmp/power-service.log \
+        "${RESULTS_DIR}/" 2>/dev/null || true
 
     # Stop services and cleanup CM4
     log_info "Stopping services and cleaning up CM4..."
