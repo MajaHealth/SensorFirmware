@@ -4,13 +4,12 @@
 #include <string>
 #include <iostream>
 #include <vector>
-
+#include "ADS1293_LIB.h"
 
 typedef struct ADS1293_USER_SETTINGS
 {
-
     bool enable_conversion;
-    bool power_enable;
+    int32_t R1_rate;
     int32_t R2_rate;
     int32_t R3_rate;
 
@@ -22,6 +21,26 @@ typedef struct ADS1293_IFIFO_DATA
     int32_t ch2;
     int32_t ch3;
 } ADS1293_IFIFO_DATA_TDS;
+
+typedef struct ADS1293_MODE_DATA
+{
+    int32_t ADC_max;
+    int32_t base_offset;
+    int32_t ODR;
+    int32_t band_width;
+    float uV_per_ADC_unit;
+} ADS1293_MODE_DATA_TDS;
+
+
+typedef struct ADS1293_DEBUG_INFO
+{
+    ADS1293_USER_SETTINGS_TDE sett;
+    ADS1293_IFIFO_DATA_TDS data;
+    ADS1293_MODE_DATA_TDS mode_info;
+    uint8_t status;
+
+} ADS1293_DEBUG_INFO_TDS;
+
 
 class ADS1293_process
 {
@@ -37,16 +56,21 @@ public:
     void process_all_settings_for_ADS1293(void);
     std::string get_data_as_json(void);
 
-        void set_power_state(bool state);
+    void set_power_state(bool state);
 
-            std::string get_timestamp_string();
+    std::string get_timestamp_string();
+
+    ADS1293_DEBUG_INFO_TDS get_debug_info(void);
+
+    void  check_analog_error(void);
 protected:
 
 private:
 
-ADS1293_USER_SETTINGS_TDE ADS1293_user_sett={0};
+    ADS1293_USER_SETTINGS_TDE ADS1293_user_sett= {0};
 
-static const int32_t SYNC_MARK_MAGIC_NUM=-99999;
+    static const int32_t SYNC_MARK_MAGIC_NUM=-99999;
+    static const int32_t ERROR_MARK_MAGIC_NUM=-99998;
     static const uint32_t IFIFO_BUFF_SIZE=3000;
     ADS1293_IFIFO_DATA_TDS _IFIFO_BUF[IFIFO_BUFF_SIZE]= {0};
     uint32_t _IFIFO_write_pos=0;
@@ -54,6 +78,12 @@ static const int32_t SYNC_MARK_MAGIC_NUM=-99999;
 
 
     bool _old_power_state=false;
+    int32_t ECG_1=0;
+    int32_t ECG_2=0;
+    int32_t ECG_3=0;
+
+    ADS1293_MODE_DATA_TDS active_mode{};
+
 
 };
 

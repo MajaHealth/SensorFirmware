@@ -99,7 +99,7 @@
 1738707156 /home/pi/Desktop/SPI_DEV_servise/include/GPIO_driver.h
 	<wiringPi.h>
 
-1755306239 source:/home/vtt/Desktop/SPI_DEV_servise/main.cpp
+1766441252 source:/home/vtt/Desktop/SPI_DEV_servise/main.cpp
 	<iostream>
 	"MAX30009_LIB/max30009_lib.h"
 	"GPIO_driver.h"
@@ -110,13 +110,14 @@
 	"MAX30009_process.h"
 	"ADS1293_process.h"
 	"WS2812_process.h"
+	"MAX30009_STATIC.h"
 	<iostream>
 	<vector>
 	<unistd.h>
 	"JSON_TCP_sever.h"
 	<atomic>
 
-1748623290 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_LIB.h
+1765661682 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_LIB.h
 	"stdint.h"
 	"VT_register_container.h"
 	"ADS1293_register_map.h"
@@ -129,7 +130,7 @@
 
 1729970478 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/VT_register_process_interface.h
 
-1748318016 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_register_map.h
+1765660307 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_register_map.h
 
 1748318016 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_IO.h
 	"stdint.h"
@@ -150,7 +151,7 @@
 	<iostream>
 	<gpiod.h>
 
-1749506670 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib.h
+1764015212 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib.h
 	"VT_sync_data_stream_interface.h"
 	"max30009_register_struct.h"
 	"stdint.h"
@@ -219,7 +220,7 @@
 1748059616 /home/vtt/Desktop/SPI_DEV_servise/hard_driver/VT_sync_data_stream_interface.h
 	"stdint.h"
 
-1748638936 /home/vtt/Desktop/SPI_DEV_servise/hard_driver/SPI_hard_driver.h
+1766427700 /home/vtt/Desktop/SPI_DEV_servise/hard_driver/SPI_hard_driver.h
 	<stdio.h>
 	<fcntl.h>
 	<unistd.h>
@@ -227,7 +228,7 @@
 	<linux/spi/spidev.h>
 	"VT_sync_data_stream_interface.h"
 
-1749572143 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_data_struct.h
+1763587893 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_data_struct.h
 
 1748318016 /home/vtt/Desktop/SPI_DEV_servise/VTK/VT_register_container.h
 	"stdint.h"
@@ -241,15 +242,16 @@
 1748318016 /home/vtt/Desktop/SPI_DEV_servise/VTK/VT_GPIO_interface.h
 	"stdint.h"
 
-1748318016 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_ext_mux.h
+1766422581 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_ext_mux.h
 	"VT_GPIO_interface.h"
+	"stdlib.h"
 
-1755304503 source:/home/vtt/Desktop/SPI_DEV_servise/src/MAX30009_process.cpp
+1766428911 source:/home/vtt/Desktop/SPI_DEV_servise/src/MAX30009_process.cpp
 	"MAX30009_process.h"
 	<iomanip>
 	<ctime>
 
-1755305236 /home/vtt/Desktop/SPI_DEV_servise/include/MAX30009_process.h
+1764010813 /home/vtt/Desktop/SPI_DEV_servise/include/MAX30009_process.h
 	"max30009_ext_mux.h"
 	<string>
 	<iostream>
@@ -263,6 +265,11 @@
 	"max30009_ext_mux.h"
 	<fstream>
 	<filesystem>
+	"MAX30009_user_set.h"
+	"MAX30009_data_storage.h"
+	"MAX30009_base_cal_table.h"
+	"MAX30009_STATIC.h"
+	"VTFLTmovingaverage.h"
 
 1748318016 /home/vtt/Desktop/SPI_DEV_servise/include/json.hpp
 	<algorithm>
@@ -479,15 +486,15 @@
 
 1748151200 /home/vtt/Desktop/SPI_DEV_servise//MAX30009_LIB/max30009_data_struct.h
 
-1755305236 /home/vtt/Desktop/SPI_DEV_servise/include/ADS1293_process.h
+1766440473 /home/vtt/Desktop/SPI_DEV_servise/include/ADS1293_process.h
 	<string>
 	<iostream>
 	<vector>
+	"ADS1293_LIB.h"
 
-1755304669 source:/home/vtt/Desktop/SPI_DEV_servise/src/ADS1293_process.cpp
+1766440473 source:/home/vtt/Desktop/SPI_DEV_servise/src/ADS1293_process.cpp
 	"ADS1293_process.h"
 	"json.hpp"
-	"ADS1293_LIB.h"
 	"GPIO_driver.h"
 	"SPI_hard_driver.h"
 	<chrono>
@@ -621,4 +628,44 @@
 1749594280 /home/vtt/Desktop/SPI_DEV_servise/include/WS2812_process.h
 	"WS2812_wrap_cls.h"
 	"json.hpp"
+
+1765637626 /home/vtt/Desktop/SPI_DEV_servise/include/debug_window.h
+	<string>
+	<thread>
+	<mutex>
+	<cstring>
+	<FL/Fl.H>
+	<FL/Fl_Window.H>
+	<FL/Fl_Box.H>
+	<FL/Fl_Button.H>
+
+1763584026 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/MAX30009_user_set.h
+	"max30009_data_struct.h"
+	"json.hpp"
+	"MAX30009_STATIC.h"
+	"max30009_lib.h"
+
+1763324586 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/MAX30009_STATIC.h
+	"max30009_data_struct.h"
+	<string>
+	<chrono>
+	<iomanip>
+	<ctime>
+	<sstream>
+
+1763916391 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/MAX30009_data_storage.h
+	"max30009_data_struct.h"
+	"json.hpp"
+	"MAX30009_STATIC.h"
+	"max30009_lib.h"
+
+1763311715 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/MAX30009_base_cal_table.h
+	"max30009_data_struct.h"
+	<iostream>
+	<fstream>
+	<filesystem>
+	<string>
+	"json.hpp"
+
+1763291816 /home/vtt/Desktop/SPI_DEV_servise/VTK/VTFLTmovingaverage.h
 

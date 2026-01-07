@@ -74,6 +74,8 @@ public:
      */
     bool set_BIOZ_constant_current_mode(MAX30009_CURRENT_AMP_ENUM_TYPE current_value);
 
+    static MAX30009_CURRENT_AMP_ENUM_TYPE get_limited_current_by_freq(MAX30009_CURRENT_AMP_ENUM_TYPE current_value, int32_t drive_freq);
+
     /**
         \brief set constant voltage stimulation mode(DAC DRIVE MODE)
         \param [in] voltage_value - output stimulation voltage value (MAX30009_VOLTAGE_AMP_ENUM)
@@ -235,6 +237,8 @@ public:
      */
     MAX30009_BIOZ_DATA_TYPE get_BIOZ_data(void);
 
+
+
     // MUX________________________________________________________________________________________________
     /**
         \brief set MUX DRVP assign to out electrode
@@ -276,7 +280,7 @@ public:
         \param [in] MUX_CAL_enable - MUX_CAL enable
         \return - true if set successful
      */
-    bool set_MUX_CAL_state(bool MUX_CAL_enable);
+    bool inline  set_MUX_CAL_state(bool MUX_CAL_enable);
 
     /**
         \brief set MUX_CAL_ONLY state
@@ -285,7 +289,21 @@ public:
     */
     bool set_MUX_CAL_ONLY_state(bool MUX_CAL_ONLY_enable);
 
+    /**
+       \brief Sets the Internal Inverse Load state (EN_INT_INLOAD).
+       \details Enables an inverse capacitive load to compensate for internal parasitic capacitances of the chip.
+       \param [in] enable - true to enable internal compensation, false to disable.
+       \return - true if set successful.
+    */
+    bool set_MUX_EN_INT_INLOAD(bool enable);
 
+    /**
+       \brief Sets the External Driven Guard state (EN_EXT_INLOAD).
+       \details Enables driven guard amplifiers on pins EL2A (BIP) and EL3A (BIN) to mitigate PCB parasitic capacitances.
+       \param [in] enable - true to enable external guard driving, false to disable.
+       \return - true if set successful.
+    */
+    bool set_MUX_EN_EXT_INLOAD(bool enable);
 
     /**
        \brief Sets the BioZ Resistive Load value for non-GSR applications (BMUX_RSEL). This load is applied across DRVP/BIP and DRVN/BIN when BMUX_BIST_EN is enabled.
@@ -326,6 +344,50 @@ public:
      */
     MAX30009_MUX_DATA_TYPE get_MUX_data(void);
 
+    //DC Leads Setup_______________________________________________________________________________________________________________________________
+    /**
+        \brief set LOFF_IMAG value (Lead-Off Current Magnitude)
+        \param [in] current_magnitude - value from 0 to 7 (sets the magnitude of the DC lead-off current)
+        \return - true if set successful
+     */
+    bool set_LOFF_IMAG(uint8_t current_magnitude);
+
+    /**
+        \brief set LOFF_IPOL state (Lead-Off Current Polarity)
+        \param [in] polarity_positive - true for positive polarity, false for negative
+        \return - true if set successful
+     */
+    bool set_LOFF_IPOL(bool polarity_positive);
+
+    /**
+        \brief set EN_DRV_OOR state (Enable Drive Out-Of-Range detection / Compliance Monitor)
+        \param [in] enable - enable voltage monitor on DRVN
+        \return - true if set successful
+     */
+    bool set_EN_DRV_OOR(bool enable);
+
+    /**
+        \brief set EN_EXT_LOFF state (Enable External Lead-Off Control)
+        \param [in] enable - enable control of LOFF current via external resistor
+        \return - true if set successful
+     */
+    bool set_EN_EXT_LOFF(bool enable);
+
+    /**
+        \brief set EN_LOFF_DET state (Enable DC Lead-Off Detection)
+        \param [in] enable - enable the DC lead-off detection comparators
+        \return - true if set successful
+     */
+    bool set_EN_LOFF_DET(bool enable);
+
+    /**
+        \brief set EN_LON_DET state (Enable Lead-On Detection)
+        \param [in] enable - enable ultra-low power lead-on detection during standby
+        \return - true if set successful
+     */
+    bool set_EN_LON_DET(bool enable);
+
+
     // FIFO________________________________________________________________________________________________
     /**
         \brief read last ADC value and write to variable
@@ -356,7 +418,7 @@ public:
         \param [out]  FIFO_data -  pointer to varible for read
         \return - true if read successful
      */
-    bool read_two_FIFO_item(MAX30009_FIFO_DATA *FIFO_data,MAX30009_FIFO_DATA *FIFO_data2);
+    bool read_two_FIFO_item(MAX30009_FIFO_DATA *FIFO_I_data,MAX30009_FIFO_DATA *FIFO_Q_data);
 
     /**
         \brief read buffer average value
@@ -377,7 +439,7 @@ public:
         \brief calculate voltage and impendance from FIFO data
         \param [out]  FIFO_data_item -  pointer to FIFO data item
      */
-    void calculate_impendance(MAX30009_FIFO_DATA * FIFO_data_item, MAX30009_CALIB_DATA_TYPE calib_data);
+    static void calculate_impendance(MAX30009_FIFO_DATA * FIFO_data_item, const MAX30009_CALIB_DATA_TYPE & calib_data,const MAX30009_BIOZ_DATA_TYPE & bioz_data);
 
     /**
         \brief Make FIFO mark
@@ -485,9 +547,9 @@ public:
     	\param [in]  ref_value - value reference data in milliohms
     	\param [in]  calibrate_current - calibrate current
      */
-    void start_calibrate(MAX30009_CALIB_SOURCE_ENUM_TYPE calib_source,
-                         double ref_value, MAX30009_CURRENT_AMP_ENUM_TYPE calibrate_current,
-                         uint32_t calibrate_frequency,MAX30009_BIOZ_TOTAL_GAIN_ENUM_TYPE calibrate_gain);
+    void start_calibrate(double ref_value,
+                         MAX30009_CURRENT_AMP_ENUM_TYPE calibrate_current, uint32_t calibrate_frequency,
+                         MAX30009_BIOZ_TOTAL_GAIN_ENUM_TYPE calibrate_gain,MAX30009_BIOZ_INPUT_HP_FILTER_VALUE_ENUM_TYPE input_filter);
 
     /**
     	\brief manual start calibrate procedure. need call every 100ms
@@ -495,7 +557,7 @@ public:
     	\param [in]   I_data - QUAD data value
     	\return - calibrate data
     */
-    MAX30009_FIFO_DATA_CALIB_TYPE calibrate_FIFO_data(MAX30009_FIFO_DATA I_data,MAX30009_FIFO_DATA Q_data, MAX30009_CALIB_DATA_TYPE calib_data);
+    static MAX30009_FIFO_DATA_CALIB_TYPE calibrate_FIFO_data(MAX30009_FIFO_DATA I_data,MAX30009_FIFO_DATA Q_data, MAX30009_CALIB_DATA_TYPE & calib_data);
 
 
     /**
@@ -699,10 +761,11 @@ inline MAX30009_LIB::MAX30009_LIB(VT_sync_data_stream_interface *data_stream)
     calculate_all_system_frequency();
 
     _calib_data.ref_value=100.0;
-    _calib_data.calib_source=MAX30009_CALIB_SOURCE_CALIBPORT;
+    _calib_data.input_filter=MAX30009_BIOZ_IN_HPFILTER_BYPASS;
     _calib_data.calib_state=MAX30009_CALIB_STATE_NEED_CALIB;
     _calib_data.calibrate_current=MAX30009_CURRENT_AMP_64uA;
     _calib_data.calibrate_frequency=100000;
+    _calib_data.need_FIFO_buffer_data_count=0;
 
     _calib_data.I_offset=0;
     _calib_data.Q_offset=0;
@@ -1050,38 +1113,8 @@ inline MAX30009_ALL_CLOCKS_FREQ_TYPE MAX30009_LIB::get_all_frequency()
 inline bool MAX30009_LIB::set_BIOZ_constant_current_mode(MAX30009_CURRENT_AMP_ENUM_TYPE current_value)
 {
     calculate_all_system_frequency();
-    //check current limit
-    if (current_value==MAX30009_CURRENT_AMP_1_28mA)
-    {
-        if (_all_clock_requency.BIOZ_DRIVE_FREQ<MAX30009_MIN_FREQ_FOR_1_28mA)
-        {
-            current_value=MAX30009_CURRENT_AMP_640uA;
-        }
-    }
 
-    if (current_value==MAX30009_CURRENT_AMP_640uA)
-    {
-        if (_all_clock_requency.BIOZ_DRIVE_FREQ<MAX30009_MIN_FREQ_FOR_640uA)
-        {
-            current_value=MAX30009_CURRENT_AMP_256uA;
-        }
-    }
-
-    if (current_value==MAX30009_CURRENT_AMP_256uA)
-    {
-        if (_all_clock_requency.BIOZ_DRIVE_FREQ<MAX30009_MIN_FREQ_FOR_256uA)
-        {
-            current_value=MAX30009_CURRENT_AMP_128uA;
-        }
-    }
-
-    if (current_value==MAX30009_CURRENT_AMP_128uA)
-    {
-        if (_all_clock_requency.BIOZ_DRIVE_FREQ<MAX30009_MIN_FREQ_FOR_128uA)
-        {
-            current_value=MAX30009_CURRENT_AMP_64uA;
-        }
-    }
+    current_value = get_limited_current_by_freq(current_value, _all_clock_requency.BIOZ_DRIVE_FREQ);
 
     uint8_t BIOZ_IDRV_RGE= (current_value>>4) & 0x03;
     uint8_t BIOZ_VDRV_MAG= current_value & 0x03;
@@ -1096,6 +1129,43 @@ inline bool MAX30009_LIB::set_BIOZ_constant_current_mode(MAX30009_CURRENT_AMP_EN
 
 
     return write_reg_result;
+}
+
+inline MAX30009_CURRENT_AMP_ENUM_TYPE MAX30009_LIB::get_limited_current_by_freq(MAX30009_CURRENT_AMP_ENUM_TYPE current_value, int32_t drive_freq)
+{
+    if (current_value == MAX30009_CURRENT_AMP_1_28mA)
+    {
+        if (drive_freq < MAX30009_MIN_FREQ_FOR_1_28mA)
+        {
+            current_value = MAX30009_CURRENT_AMP_640uA;
+        }
+    }
+
+    if (current_value == MAX30009_CURRENT_AMP_640uA)
+    {
+        if (drive_freq < MAX30009_MIN_FREQ_FOR_640uA)
+        {
+            current_value = MAX30009_CURRENT_AMP_256uA;
+        }
+    }
+
+    if (current_value == MAX30009_CURRENT_AMP_256uA)
+    {
+        if (drive_freq < MAX30009_MIN_FREQ_FOR_256uA)
+        {
+            current_value = MAX30009_CURRENT_AMP_128uA;
+        }
+    }
+
+    if (current_value == MAX30009_CURRENT_AMP_128uA)
+    {
+        if (drive_freq < MAX30009_MIN_FREQ_FOR_128uA)
+        {
+            current_value = MAX30009_CURRENT_AMP_64uA;
+        }
+    }
+
+    return current_value;
 }
 
 inline bool MAX30009_LIB::set_BIOZ_constant_voltage_mode(MAX30009_VOLTAGE_AMP_ENUM_TYPE voltage_value)
@@ -1433,6 +1503,8 @@ inline bool MAX30009_LIB::set_MUX_DRVN_assign(MAX30009_MUX_BIN_DRVN_ASSIGN_ENUM 
     return write_reg_result;
 }
 
+
+
 inline bool MAX30009_LIB::set_MUX_state(bool MUX_enable)
 {
     _write_reg.BIOZ_MUX_CONFIGURATION_1.MUX_EN=(uint8_t)MUX_enable;
@@ -1472,6 +1544,24 @@ inline bool MAX30009_LIB::set_MUX_Resistor_Load_non_GSR(MAX30009_BMUX_RSEL_ENUM_
 
     bool write_reg_result=write_register(MAX30009_ADDRESS_BIOZ_MUX_CONFIGURATION_1);
 
+    calculate_BIOZ_modes();
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_MUX_EN_INT_INLOAD(bool enable)
+{
+    _write_reg.BIOZ_MUX_CONFIGURATION_2.EN_INT_INLOAD = (uint8_t)enable;
+    bool write_reg_result=write_register(MAX30009_ADDRESS_BIOZ_MUX_CONFIGURATION_2);
+    calculate_BIOZ_modes();
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_MUX_EN_EXT_INLOAD(bool enable)
+{
+    _write_reg.BIOZ_MUX_CONFIGURATION_2.EN_EXT_INLOAD = (uint8_t)enable;
+    bool write_reg_result=write_register(MAX30009_ADDRESS_BIOZ_MUX_CONFIGURATION_2);
     calculate_BIOZ_modes();
 
     return write_reg_result;
@@ -1525,6 +1615,51 @@ inline void MAX30009_LIB::calculate_MUX_modes()
 inline MAX30009_MUX_DATA_TYPE MAX30009_LIB::get_MUX_data()
 {
     return _mux_data;
+}
+
+
+//DC Leads Setup_______________________________________________________________________________________________________________________________
+
+inline bool MAX30009_LIB::set_LOFF_IMAG(uint8_t current_magnitude)
+{
+    _write_reg.DC_LEADS_CONFIGURATION.LOFF_IMAG = (uint8_t)(current_magnitude & 0x07);
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_LOFF_IPOL(bool polarity_positive)
+{
+    _write_reg.DC_LEADS_CONFIGURATION.LOFF_IPOL = (uint8_t)polarity_positive;
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_EN_DRV_OOR(bool enable)
+{
+    _write_reg.DC_LEADS_CONFIGURATION.EN_DRV_OOR = (uint8_t)enable;
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_EN_EXT_LOFF(bool enable)
+{
+    _write_reg.DC_LEADS_CONFIGURATION.EN_EXT_LOFF = (uint8_t)enable;
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_EN_LOFF_DET(bool enable)
+{
+    _write_reg.DC_LEADS_CONFIGURATION.EN_LOFF_DET = (uint8_t)enable;
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_EN_LON_DET(bool enable)
+{
+    _write_reg.DC_LEADS_CONFIGURATION.EN_LON_DET = (uint8_t)enable;
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+    return write_reg_result;
 }
 
 inline bool MAX30009_LIB::get_last_ADC_value(MAX30009_FIFO_DATA *I_channel_value, MAX30009_FIFO_DATA *Q_channel_value)
@@ -1638,7 +1773,7 @@ inline bool MAX30009_LIB::read_10pcs_FIFO_data(MAX30009_FIFO_DATA *FIFO_data_arr
     //    return result;
 }
 
-inline bool MAX30009_LIB::read_two_FIFO_item(MAX30009_FIFO_DATA *FIFO_data, MAX30009_FIFO_DATA *FIFO_data2)
+inline bool MAX30009_LIB::read_two_FIFO_item(MAX30009_FIFO_DATA *FIFO_I_data,MAX30009_FIFO_DATA *FIFO_Q_data)
 {
     bool result=true;
 
@@ -1655,8 +1790,35 @@ inline bool MAX30009_LIB::read_two_FIFO_item(MAX30009_FIFO_DATA *FIFO_data, MAX3
     uint8_t answer_array[8];
     if (SPI_data_transfer(request_array,answer_array,8)==true)
     {
-        *FIFO_data=encode_FIFO_data(&answer_array[2]);
-        *FIFO_data2=encode_FIFO_data(&answer_array[5]);
+        MAX30009_FIFO_DATA data=encode_FIFO_data(&answer_array[2]);
+        if (data.data_source==MAX30009_I_CHANNEL)
+        {
+            *FIFO_I_data=data;
+        }
+        else if(data.data_source==MAX30009_Q_CHANNEL)
+        {
+            *FIFO_Q_data=data;
+        }
+        else
+        {
+            result=false;
+        }
+
+        data=encode_FIFO_data(&answer_array[5]);
+        if (data.data_source==MAX30009_I_CHANNEL)
+        {
+            *FIFO_I_data=data;
+        }
+        else if(data.data_source==MAX30009_Q_CHANNEL)
+        {
+            *FIFO_Q_data=data;
+        }
+        else
+        {
+            result=false;
+        }
+
+
     }
     else
     {
@@ -1668,72 +1830,72 @@ inline bool MAX30009_LIB::read_two_FIFO_item(MAX30009_FIFO_DATA *FIFO_data, MAX3
 
 inline bool MAX30009_LIB::get_FIFO_average_all_value(MAX30009_FIFO_DATA *FIFO_I_data, MAX30009_FIFO_DATA *FIFO_Q_data)
 {
-    uint8_t request_array[20];
-    request_array[0]=(uint8_t)MAX30009_ADDRESS_FIFO_DATA_REGISTER;
-    request_array[1]=MAX30009_REGISTER_READ_DIRECT;
-    request_array[2]=MAX30009_DUMMY_BYTE;
-    request_array[3]=MAX30009_DUMMY_BYTE;
-    request_array[4]=MAX30009_DUMMY_BYTE;
-    request_array[5]=MAX30009_DUMMY_BYTE;
-    request_array[6]=MAX30009_DUMMY_BYTE;
-    request_array[7]=MAX30009_DUMMY_BYTE;
-    request_array[8]=MAX30009_DUMMY_BYTE;
-    request_array[9]=MAX30009_DUMMY_BYTE;
-    request_array[10]=MAX30009_DUMMY_BYTE;
-    request_array[11]=MAX30009_DUMMY_BYTE;
-    request_array[12]=MAX30009_DUMMY_BYTE;
-    request_array[13]=MAX30009_DUMMY_BYTE;
-    request_array[14]=MAX30009_DUMMY_BYTE;
-    request_array[15]=MAX30009_DUMMY_BYTE;
-    request_array[16]=MAX30009_DUMMY_BYTE;
-    request_array[17]=MAX30009_DUMMY_BYTE;
-    request_array[18]=MAX30009_DUMMY_BYTE;
-    request_array[19]=MAX30009_DUMMY_BYTE;
-    uint8_t answer_array[20];
-
-
-    MAX30009_FIFO_DATA FIFO_data;
-    int64_t I_sum=0;
-    int64_t Q_sum=0;
-    int32_t I_sum_items=0;
-    int32_t Q_sum_items=0;
-    int64_t I_avarage=0;
-    int64_t Q_avarage=0;
-
-    for (uint32_t p=0; p<40; p++)
-    {
-        SPI_data_transfer(request_array,answer_array,20);
-
-        for (uint32_t i=0; i<6; i++)
-        {
-            FIFO_data=encode_FIFO_data(&answer_array[2+i*3]);
-
-            if (FIFO_data.data_source==MAX30009_I_CHANNEL)
-            {
-                I_sum=I_sum+FIFO_data.channel_value;
-                I_sum_items++;
-            }
-            else if (FIFO_data.data_source==MAX30009_Q_CHANNEL)
-            {
-                Q_sum=Q_sum+FIFO_data.channel_value;
-                Q_sum_items++;
-            }
-        }
-    }
-    if (I_sum_items!=0)
-    {
-        I_avarage=I_sum/I_sum_items;
-    }
-    if (Q_sum_items!=0)
-    {
-        Q_avarage=Q_sum/Q_sum_items;
-    }
-
-    FIFO_I_data->channel_value=I_avarage;
-    FIFO_I_data->data_source=MAX30009_I_CHANNEL;
-
-    FIFO_Q_data->channel_value=Q_avarage;
-    FIFO_Q_data->data_source=MAX30009_Q_CHANNEL;
+//    uint8_t request_array[20];
+//    request_array[0]=(uint8_t)MAX30009_ADDRESS_FIFO_DATA_REGISTER;
+//    request_array[1]=MAX30009_REGISTER_READ_DIRECT;
+//    request_array[2]=MAX30009_DUMMY_BYTE;
+//    request_array[3]=MAX30009_DUMMY_BYTE;
+//    request_array[4]=MAX30009_DUMMY_BYTE;
+//    request_array[5]=MAX30009_DUMMY_BYTE;
+//    request_array[6]=MAX30009_DUMMY_BYTE;
+//    request_array[7]=MAX30009_DUMMY_BYTE;
+//    request_array[8]=MAX30009_DUMMY_BYTE;
+//    request_array[9]=MAX30009_DUMMY_BYTE;
+//    request_array[10]=MAX30009_DUMMY_BYTE;
+//    request_array[11]=MAX30009_DUMMY_BYTE;
+//    request_array[12]=MAX30009_DUMMY_BYTE;
+//    request_array[13]=MAX30009_DUMMY_BYTE;
+//    request_array[14]=MAX30009_DUMMY_BYTE;
+//    request_array[15]=MAX30009_DUMMY_BYTE;
+//    request_array[16]=MAX30009_DUMMY_BYTE;
+//    request_array[17]=MAX30009_DUMMY_BYTE;
+//    request_array[18]=MAX30009_DUMMY_BYTE;
+//    request_array[19]=MAX30009_DUMMY_BYTE;
+//    uint8_t answer_array[20];
+//
+//
+//    MAX30009_FIFO_DATA FIFO_data;
+//    int64_t I_sum=0;
+//    int64_t Q_sum=0;
+//    int32_t I_sum_items=0;
+//    int32_t Q_sum_items=0;
+//    int64_t I_avarage=0;
+//    int64_t Q_avarage=0;
+//
+//    for (uint32_t p=0; p<40; p++)
+//    {
+//        SPI_data_transfer(request_array,answer_array,20);
+//
+//        for (uint32_t i=0; i<6; i++)
+//        {
+//            FIFO_data=encode_FIFO_data(&answer_array[2+i*3]);
+//
+//            if (FIFO_data.data_source==MAX30009_I_CHANNEL)
+//            {
+//                I_sum=I_sum+FIFO_data.channel_value;
+//                I_sum_items++;
+//            }
+//            else if (FIFO_data.data_source==MAX30009_Q_CHANNEL)
+//            {
+//                Q_sum=Q_sum+FIFO_data.channel_value;
+//                Q_sum_items++;
+//            }
+//        }
+//    }
+//    if (I_sum_items!=0)
+//    {
+//        I_avarage=I_sum/I_sum_items;
+//    }
+//    if (Q_sum_items!=0)
+//    {
+//        Q_avarage=Q_sum/Q_sum_items;
+//    }
+//
+//    FIFO_I_data->channel_value=I_avarage;
+//    FIFO_I_data->data_source=MAX30009_I_CHANNEL;
+//
+//    FIFO_Q_data->channel_value=Q_avarage;
+//    FIFO_Q_data->data_source=MAX30009_Q_CHANNEL;
     return true;
 }
 
@@ -1774,7 +1936,7 @@ inline MAX30009_FIFO_DATA MAX30009_LIB::encode_FIFO_data(uint8_t *FIFO_answer_da
     return out_data;
 }
 
-inline void MAX30009_LIB::calculate_impendance(MAX30009_FIFO_DATA *FIFO_data_item, MAX30009_CALIB_DATA_TYPE calib_data)
+inline void MAX30009_LIB::calculate_impendance(MAX30009_FIFO_DATA *FIFO_data_item,const MAX30009_CALIB_DATA_TYPE & calib_data,const MAX30009_BIOZ_DATA_TYPE & bioz_data)
 {
 
     int64_t item_value=FIFO_data_item->channel_value;
@@ -1790,16 +1952,23 @@ inline void MAX30009_LIB::calculate_impendance(MAX30009_FIFO_DATA *FIFO_data_ite
 
     int64_t adcv=item_value*(int64_t)100000;
     int64_t divp=333772;
-    divp=divp*(int64_t)_bioz_data.total_gain_value;
-    divp=divp*(int64_t)_bioz_data.current_peak;
+    divp=divp*(int64_t)bioz_data.total_gain_value;
+    divp=divp*(int64_t)bioz_data.current_peak;
     divp=divp*(int64_t)1000;
     divp=divp/(int64_t)1000000000;
-
+    if (divp==0)
+    {
+        return;
+    }
     FIFO_data_item->impendance_value=adcv/divp;
 
     adcv=item_value*(int64_t)1000000;
     divp=333772;
-    divp=divp*(int64_t)_bioz_data.total_gain_value;
+    divp=divp*(int64_t)bioz_data.total_gain_value;
+    if (divp==0)
+    {
+        return;
+    }
     FIFO_data_item->voltage_value=adcv/divp;
 }
 
@@ -1938,30 +2107,56 @@ inline bool MAX30009_LIB::set_LEAD_RBIAS_BIN_state(bool RBIAS_BIN_enable)
 
 inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
 {
-    MAX30009_FIFO_DATA FIFO_I_data;
-    MAX30009_FIFO_DATA FIFO_Q_data;
-    MAX30009_STATUS_STRUCT_TYPE status;
-    if (_calib_data.delay_in_calib>0)
-    {
-        _calib_data.delay_in_calib--;
-        Flush_FIFO(); //clear FIFO after delay
-        read_status(&status);
+    MAX30009_FIFO_DATA avrg_FIFO_I_data;
+    MAX30009_FIFO_DATA avrg_FIFO_Q_data;
 
+    if (_calib_data.delay_for_stabile_data>0)
+    {
+        _calib_data.delay_for_stabile_data--;
+        Flush_FIFO();
         return MAX30009_CALIB_IN_DELAY;
     }
 
-    if (_calib_data.need_full_FIFO_buffer==true)
+    if (_calib_data.need_FIFO_buffer_data_count>0)
     {
+        uint16_t data_count=0;
+        get_FIFO_data_count(&data_count);
 
-        //get_FIFO_data_count(&_calib_data.FIFO_data_count);
-        read_status(&status);
-        if (status.a_full_flag==false) //buffer is not full
+        if (data_count<_calib_data.need_FIFO_buffer_data_count) //need more data
         {
             return MAX30009_CALIB_WAIT_DATA;
         }
         else
         {
-            _calib_data.need_full_FIFO_buffer=false;
+            _calib_data.need_FIFO_buffer_data_count=0; //clear data need
+            int64_t I_sum=0;
+            int64_t Q_sum=0;
+            MAX30009_FIFO_DATA FIFO_I_data;
+            MAX30009_FIFO_DATA FIFO_Q_data;
+            int32_t item_count=0;
+            for (uint32_t i=0; i<data_count; i=i+2)
+            {
+                FIFO_I_data.channel_value=0;
+                FIFO_Q_data.channel_value=0;
+                read_two_FIFO_item(&FIFO_I_data,&FIFO_Q_data);
+                I_sum=I_sum+ FIFO_I_data.channel_value;
+                Q_sum=Q_sum+ FIFO_Q_data.channel_value;
+                item_count++;
+            }
+            if (item_count>0)
+            {
+                avrg_FIFO_I_data.channel_value=I_sum/item_count;
+                avrg_FIFO_Q_data.channel_value=Q_sum/item_count;
+            }
+            else
+            {
+                avrg_FIFO_I_data.channel_value=0;
+                avrg_FIFO_Q_data.channel_value=0;
+
+            }
+
+            calculate_impendance(&avrg_FIFO_I_data,_calib_data,_bioz_data);
+            calculate_impendance(&avrg_FIFO_Q_data,_calib_data,_bioz_data);
         }
     }
 
@@ -1993,38 +2188,36 @@ inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
         set_LEAD_RBIAS_BIP_state(true);
         set_LEAD_RBIAS_VALUE(MAX30009_LEAD_RBIAS_50M);
 
-        set_ext_capacitor_state(false);
         set_ext_resistor_state(false,0);
+        set_ext_capacitor_state(true);
+        set_BIOZ_DC_restore(true);
+        set_EN_DRV_OOR(true);
+        set_MUX_EN_INT_INLOAD(true);
+        set_MUX_EN_EXT_INLOAD(true);
+
         set_BIOZ_bandgap_state(true);
         set_BIOZ_fast_start_mode(MAX30009_FAST_START_MODE_ON_200ms);
         set_BIOZ_total_gain(_calib_data.calibrate_gain);
         set_BIOZ_amplifier_range(MAX30009_BIOZ_AMPLF_MODE_HIGH);
         set_BIOZ_amplifier_bandwidth(MAX30009_BIOZ_AMPLF_MODE_HIGH);
-        set_BIOZ_DC_restore(true);
-        set_input_HP_filter(MAX30009_BIOZ_IN_HPFILTER_BYPASS);
+        set_input_HP_filter(_calib_data.input_filter);
         set_out_DHP_filter(MAX30009_BIOZ_DHPF_BYPASS);
         set_out_DLP_filter(MAX30009_BIOZ_DLPF_BYPASS);
         set_drive_frequency(_calib_data.calibrate_frequency*10,3000);
 
 
+        set_BIOZ_I_CLK_PHASE(false);
+        set_BIOZ_Q_CLK_PHASE(false);
+
         set_BIOZ_constant_current_mode(MAX30009_CURRENT_AMP_16nA); //set minimum current
         set_BIOZ_DRV_RESET(true);
-
-
 
         set_PLL_state(true);
         set_BIOZ_I_channel_state(true);
         set_BIOZ_Q_channel_state(true);
 
-        set_BIOZ_I_CLK_PHASE(false);
-        set_BIOZ_Q_CLK_PHASE(false);
-
-        set_FIFO_A_FULL_size(250);
-
-
-
-        _calib_data.delay_in_calib=MAX30009_CALIB_DELAY_PERIOD;
-        _calib_data.need_full_FIFO_buffer=true;
+        _calib_data.delay_for_stabile_data=10;
+        _calib_data.need_FIFO_buffer_data_count=100;
 
         _calib_data.calib_state=MAX30009_CALIB_STATE_MEAS_OFFSET;
         return _calib_data.calib_state;
@@ -2032,9 +2225,9 @@ inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
 
     if (_calib_data.calib_state==MAX30009_CALIB_STATE_MEAS_OFFSET)
     {
-        get_FIFO_average_all_value(&FIFO_I_data, &FIFO_Q_data);
-        _calib_data.I_offset=(double)FIFO_I_data.channel_value;
-        _calib_data.Q_offset=(double)FIFO_Q_data.channel_value;
+
+        _calib_data.I_offset=avrg_FIFO_I_data.channel_value;
+        _calib_data.Q_offset=avrg_FIFO_Q_data.channel_value;
 
         _calib_data.calib_state=MAX30009_CALIB_STATE_START_MEAS_IN_PHASE;
         return _calib_data.calib_state;
@@ -2043,20 +2236,13 @@ inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
     if (_calib_data.calib_state==MAX30009_CALIB_STATE_START_MEAS_IN_PHASE)
     {
         set_MUX_state(true);
-        if (_calib_data.calib_source==MAX30009_CALIB_SOURCE_CALIBPORT)
-        {
-            set_MUX_CAL_state(true);
-            set_MUX_CAL_ONLY_state(true);
-        }
-        else
-        {
-            set_MUX_CAL_state(false);
-            set_MUX_CAL_ONLY_state(false);
-            set_MUX_DRVP_assign(MAX30009_MUX_BIP_DRVP_ASSIGN_EL1);
-            set_MUX_BIP_assign(MAX30009_MUX_BIP_DRVP_ASSIGN_EL2B);
-            set_MUX_BIN_assign(MAX30009_MUX_BIN_DRVN_ASSIGN_EL3B);
-            set_MUX_DRVN_assign(MAX30009_MUX_BIN_DRVN_ASSIGN_EL4);
-        }
+        set_MUX_CAL_state(false);
+        set_MUX_CAL_ONLY_state(false);
+        set_MUX_DRVP_assign(MAX30009_MUX_BIP_DRVP_ASSIGN_EL1);
+        set_MUX_BIP_assign(MAX30009_MUX_BIP_DRVP_ASSIGN_EL2B);
+        set_MUX_BIN_assign(MAX30009_MUX_BIN_DRVN_ASSIGN_EL3B);
+        set_MUX_DRVN_assign(MAX30009_MUX_BIN_DRVN_ASSIGN_EL4);
+
 
 
 
@@ -2068,8 +2254,8 @@ inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
         set_BIOZ_Q_CLK_PHASE(true);
 
 
-        _calib_data.delay_in_calib=MAX30009_CALIB_DELAY_PERIOD*3;
-        _calib_data.need_full_FIFO_buffer=true;
+        _calib_data.delay_for_stabile_data=100;
+        _calib_data.need_FIFO_buffer_data_count=240;
 
         _calib_data.calib_state=MAX30009_CALIB_STATE_MEAS_IN_PHASE;
         return _calib_data.calib_state;
@@ -2077,15 +2263,11 @@ inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
 
     if (_calib_data.calib_state==MAX30009_CALIB_STATE_MEAS_IN_PHASE)
     {
-        get_FIFO_average_all_value(&FIFO_I_data, &FIFO_Q_data);
+        _calib_data.I_cal_in_ADC=avrg_FIFO_I_data.channel_value;
+        _calib_data.Q_cal_in_ADC=avrg_FIFO_Q_data.channel_value;
 
-        _calib_data.I_cal_in_ADC=FIFO_I_data.channel_value;
-        _calib_data.Q_cal_in_ADC=FIFO_Q_data.channel_value;
-
-        calculate_impendance(&FIFO_I_data,_calib_data);
-        calculate_impendance(&FIFO_Q_data,_calib_data);
-        _calib_data.I_cal_in=(double)FIFO_I_data.impendance_value/100.0;
-        _calib_data.Q_cal_in=(double)FIFO_Q_data.impendance_value/100.0;
+        _calib_data.I_cal_in=(double)avrg_FIFO_I_data.impendance_value/100.0;
+        _calib_data.Q_cal_in=(double)avrg_FIFO_Q_data.impendance_value/100.0;
 
         _calib_data.calib_state=MAX30009_CALIB_STATE_START_MEAS_QUAD;
         return _calib_data.calib_state;
@@ -2097,8 +2279,8 @@ inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
         set_BIOZ_I_CLK_PHASE(true);
         set_BIOZ_Q_CLK_PHASE(false);
 
-        _calib_data.delay_in_calib=MAX30009_CALIB_DELAY_PERIOD;
-        _calib_data.need_full_FIFO_buffer=true;
+        _calib_data.delay_for_stabile_data=50;
+        _calib_data.need_FIFO_buffer_data_count=240;
 
         _calib_data.calib_state=MAX30009_CALIB_STATE_MEAS_QUAD;
         return _calib_data.calib_state;
@@ -2106,11 +2288,11 @@ inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
 
     if (_calib_data.calib_state==MAX30009_CALIB_STATE_MEAS_QUAD)
     {
-        get_FIFO_average_all_value(&FIFO_I_data, &FIFO_Q_data);
-        calculate_impendance(&FIFO_I_data,_calib_data);
-        calculate_impendance(&FIFO_Q_data,_calib_data);
-        _calib_data.I_cal_quad=(double)FIFO_I_data.impendance_value/100.0;
-        _calib_data.Q_cal_quad=(double)FIFO_Q_data.impendance_value/100.0;
+        _calib_data.I_cal_quad_ADC=avrg_FIFO_I_data.channel_value;
+        _calib_data.Q_cal_quad_ADC=avrg_FIFO_Q_data.channel_value;
+
+        _calib_data.I_cal_quad=(double)avrg_FIFO_I_data.impendance_value/100.0;
+        _calib_data.Q_cal_quad=(double)avrg_FIFO_Q_data.impendance_value/100.0;
 
         _calib_data.calib_state=MAX30009_CALIB_STATE_CALCULATE_COEF;
         return _calib_data.calib_state;
@@ -2146,6 +2328,7 @@ inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
         _calib_data.Q_phase_cos=cos(_calib_data.Q_phase_coef*M_PI/180.0);
         _calib_data.Q_phase_sin=sin(_calib_data.Q_phase_coef*M_PI/180.0);
 
+
         _calib_data.calib_state=MAX30009_CALIB_STATE_PRE_READY;
         return _calib_data.calib_state;
     }
@@ -2159,18 +2342,19 @@ inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
     return _calib_data.calib_state;
 }
 
-inline void MAX30009_LIB::start_calibrate(MAX30009_CALIB_SOURCE_ENUM_TYPE calib_source, double ref_value, MAX30009_CURRENT_AMP_ENUM_TYPE calibrate_current, uint32_t calibrate_frequency, MAX30009_BIOZ_TOTAL_GAIN_ENUM_TYPE calibrate_gain)
+inline void MAX30009_LIB::start_calibrate(double ref_value,
+        MAX30009_CURRENT_AMP_ENUM_TYPE calibrate_current, uint32_t calibrate_frequency, MAX30009_BIOZ_TOTAL_GAIN_ENUM_TYPE calibrate_gain,MAX30009_BIOZ_INPUT_HP_FILTER_VALUE_ENUM_TYPE input_filter)
 {
     _calib_data.calib_state=MAX30009_CALIB_STATE_NEED_CALIB;
     _calib_data.ref_value=ref_value;
-    _calib_data.calib_source=calib_source;
+    _calib_data.input_filter=input_filter;
     _calib_data.calibrate_current=calibrate_current;
     _calib_data.calibrate_frequency=calibrate_frequency;
     _calib_data.calibrate_gain=calibrate_gain;
-    _calib_data.need_full_FIFO_buffer=false;
+    _calib_data.need_FIFO_buffer_data_count=0;
 }
 
-inline MAX30009_FIFO_DATA_CALIB_TYPE MAX30009_LIB::calibrate_FIFO_data(MAX30009_FIFO_DATA I_data, MAX30009_FIFO_DATA Q_data, MAX30009_CALIB_DATA_TYPE calib_data)
+inline MAX30009_FIFO_DATA_CALIB_TYPE MAX30009_LIB::calibrate_FIFO_data(MAX30009_FIFO_DATA I_data, MAX30009_FIFO_DATA Q_data, MAX30009_CALIB_DATA_TYPE & calib_data)
 {
     //		To apply the calibration coefficients to a measured impedance, follow these steps.
     //		1. Measure I and Q load impedances (I_load [Ω] and Q_load [Ω]).
@@ -2189,6 +2373,8 @@ inline MAX30009_FIFO_DATA_CALIB_TYPE MAX30009_LIB::calibrate_FIFO_data(MAX30009_
     MAX30009_FIFO_DATA_CALIB_TYPE out_data= {0};
     out_data.I_load=(double)I_data.impendance_value/100.0;
     out_data.Q_load=(double)Q_data.impendance_value/100.0;
+    out_data.I_ADC=I_data.channel_value;
+    out_data.Q_ADC=Q_data.channel_value;
 
     out_data.overload=false;
     if (I_data.channel_value<MAX30009_MIN_ADC_VALUE)
@@ -2216,8 +2402,9 @@ inline MAX30009_FIFO_DATA_CALIB_TYPE MAX30009_LIB::calibrate_FIFO_data(MAX30009_
     out_data.I_cal_real=(out_data.I_load/calib_data.I_coef) * calib_data.I_phase_cos;
     out_data.I_cal_imag=(out_data.I_load/calib_data.I_coef) * calib_data.I_phase_sin;
 
-    out_data.Q_cal_real=(out_data.Q_load/calib_data.Q_coef) * calib_data.Q_phase_cos;
-    out_data.Q_cal_imag=(out_data.Q_load/calib_data.Q_coef) * calib_data.Q_phase_sin;
+    out_data.Q_cal_real = (out_data.Q_load / calib_data.Q_coef) * calib_data.Q_phase_sin;
+    out_data.Q_cal_imag = (out_data.Q_load / calib_data.Q_coef) * calib_data.Q_phase_cos;
+
 
     out_data.Load_real=out_data.I_cal_real-out_data.Q_cal_real;
     out_data.Load_imag=out_data.I_cal_imag+out_data.Q_cal_imag;

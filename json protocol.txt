@@ -1,0 +1,65 @@
+nc 127.0.0.1 30009 - connect to server MAX30009
+
+req:{"type":"settings", "input_HP_filter":"BYPASS","measure_enable":true,"measure_frequency":500,"out_HP_filter":"BYPASS","out_LP_filter":"BYPASS","stimulate_current":"640uA","stimulate_frequency":99968}
+ans:
+{"type":"meas_state","state":"pre_measuring"}
+{"type":"meas_state","state":"pre_measure_end","real":642 }
+{"type":"meas_state","state":"calibrating"}
+{"I_cal_in":618.51,"I_cal_in_ADC":186832,"I_cal_quad":50.93,"I_cal_quad_ADC":15385.0,"I_coef":0.9651684656109086,"I_offset":-546,"I_phase_coef":4.707289352172135,"I_phase_cos":0.996626954273485,"I_phase_sin":0.08206530335992723,"Q_cal_in":-621.92,"Q_cal_in_ADC":-187862,"Q_cal_quad":-54.47,"Q_cal_quad_ADC":-16454.0,"Q_coef":0.9709187911604229,"Q_offset":-331,"Q_phase_coef":5.005398780568058,"Q_phase_cos":0.9961864812890449,"Q_phase_sin":0.08724961029684569,"calibrate_current":"640uA","calibrate_frequency":99968,"calibrate_gain":"x1","input_filter":"BYPASS","ref_value":643.0,"type":"calib_data"}
+{"type":"meas_state","state":"calibrate_end"}
+{"type":"meas_state","state":"start_measuring"} 
+{"gain":"x1","input_HP_filter":"BYPASS","measure_enable":true,"measure_frequency":500,"out_HP_filter":"BYPASS","out_LP_filter":"BYPASS","stimulate_current":"640uA","stimulate_frequency":99968,"type":"actual_settings"}
+
+req:{"type": "poweroff"}
+ans:{"type":"power_is_off"}
+
+req:{"type": "build_base_table"}
+ans:{"type":"build_base_table_started"}
+{"I_cal_in":368.63,"I_cal_in_ADC":111351,"I_cal_quad":-6.74,"I_cal_quad_ADC":-2037.0,"I_coef":0.957640549736475,"I_offset":17,"I_phase_coef":-1.0474745130260885,"I_phase_cos":0.9998328911030347,"I_phase_sin":-0.018280860716801274,"Q_cal_in":-370.74,"Q_cal_in_ADC":-111988,"Q_cal_quad":4.71,"Q_cal_quad_ADC":1423.0,"Q_coef":0.9630387466728356,"Q_offset":387,"Q_phase_coef":-0.7278648225085032,"Q_phase_cos":0.9999193098802461,"Q_phase_sin":-0.012703295974364672,"calibrate_current":"64uA","calibrate_frequency":1000,"calibrate_gain":"x10","input_filter":"BYPASS","ref_value":385.0,"type":"calib_data"}
+{"I_cal_in":368.76,"I_cal_in_ADC":111390,"I_cal_quad":-6.51,"I_cal_quad_ADC":-1967.0,"I_coef":0.9579674246950465,"I_offset":-199,"I_phase_coef":-1.011380798379718,"I_phase_cos":0.9998442088185701,"I_phase_sin":-0.01765100824224127,"Q_cal_in":-370.86,"Q_cal_in_ADC":-112025,"Q_cal_quad":4.49,"Q_cal_quad_ADC":1359.0,"Q_coef":0.9633433226151457,"Q_offset":109,"Q_phase_coef":-0.6936458004349976,"Q_phase_cos":0.9999267183975215,"Q_phase_sin":-0.012106107333238613,"calibrate_current":"64uA","calibrate_frequency":2000,"calibrate_gain":"x10","input_filter":"BYPASS","ref_value":385.0,"type":"calib_data"}
+.........
+
+
+req: {"type": "get_data"}
+ans: {"data":[[-999990000,510000,0,0,0],[6530342,6530347,8227,721,0],[6536827,6536834,10104,885,0],[-999990000,570000,0,0,0],[6601682,6601734,26393,2290,0],[6602188,6602242,26538,2303,0]],"data_frequency":5,"data_size":132,"timestamp":"2025-12-22 21:16:57.968","type":"data"}
+SYNC_MAGIC_NUM:-999990000
+SYNC_COUNTER:510000= 51
+
+
+
+nc 127.0.0.1 1293  - connect to server ADS1293
+
+req: {"R1_rate":4,"R2_rate":8,"R3_rate":128,"enable_conversion":true,"type": "settings"}
+ans: {"R1_rate":4,"R2_rate":8,"R3_rate":128,"enable_conversion":true,"type":"actual_settings"}
+
+req: {"type": "get_data"}
+ans: {"type":"data","data_rate":50,"data_size":142,"timestamp":"2025-12-22 21:58:36.937","uV_per_ADC_unit":0.1634870320558548,"band_width":10,"data":[[24,-36,1],[27,-36,2],[27,-32,1],[26,-36,0],[23,-37,-3][-99999,148,0],[20,-37,-3],[22,-34,-2]]}
+SYNC_MAGIC_NUM:-99999
+SYNC_COUNTER:148
+
+req:{"type": "poweroff"}
+ans:{"type":"power_is_off"}
+
+
+
+nc 127.0.0.1 2812 - connect to server LED
+req: {"leds": [[255,255, 255],[0, 0, 0],[255, 0, 255],[0, 255, 255],[0, 0, 0],[255, 255, 255],[0, 255, 0],[0, 255, 0]], "t_time": 3000}
+ans: {"type": "colors_is_set"}
+
+
+nc 127.0.0.1 501 - connect to power control
+
+req:{ "type": "get_batt_info"}
+ans:{"average_time_to_empty":859,"average_time_to_full":65535,"battery_charge_is_disable":false,"charger_is_connect":true,"charging":false,"current":-0.269,"cycle_count":7,"design_capacity":6.900,"design_voltage":10.800,"discharging":true,"full_charge_capacity":6.136,"fully_charged":false,"fully_discharged":false,"relative_state_of_charge":65,"remaining_capacity":3.937,"run_time_to_empty":878,"temperature":22.550,"type":"batt_info","voltage":11.737}
+
+BUTTON PRESS
+{"hold_time":0,"state":true,"type":"button_info"}
+{"hold_time":1,"state":true,"type":"button_info"}
+{"hold_time":2,"state":true,"type":"button_info"}
+{"hold_time":3,"state":true,"type":"button_info"}
+{"hold_time":4,"state":true,"type":"button_info"}
+{"hold_time":0,"state":false,"type":"button_info"}
+
+
+false - click once - true 
+false - long press - false

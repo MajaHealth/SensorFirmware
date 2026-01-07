@@ -36,10 +36,10 @@ const uint32_t MAX30009_ADC_OSR_divider[MAX30009_ADC_OSR_SIZE]={8,16,32,64,128,2
 const uint32_t MAX30009_DAC_OSR_divider[MAX30009_DAC_OSR_SIZE]={32,64,128,256};
 
 
-const int32_t MAX30009_MIN_FREQ_FOR_128uA=5120;    // in 1/10 Hertz
-const int32_t MAX30009_MIN_FREQ_FOR_256uA=20480;  // in 1/10 Hertz
-const int32_t MAX30009_MIN_FREQ_FOR_640uA=81920;  // in 1/10 Hertz
-const int32_t MAX30009_MIN_FREQ_FOR_1_28mA=163840;  // in 1/10 Hertz
+const int32_t MAX30009_MIN_FREQ_FOR_128uA=512;    // in Hertz
+const int32_t MAX30009_MIN_FREQ_FOR_256uA=2048;  // in  Hertz
+const int32_t MAX30009_MIN_FREQ_FOR_640uA=8192;  // in  Hertz
+const int32_t MAX30009_MIN_FREQ_FOR_1_28mA=16384;  // in Hertz
 
 static const int32_t MAX30009_MIN_ADC_VALUE=-500000;
 static const int32_t MAX30009_MAX_ADC_VALUE=500000;
@@ -144,6 +144,8 @@ typedef struct MAX30009_FIFO_DATA
 
 typedef struct MAX30009_FIFO_DATA_CALIB
 {
+    int32_t I_ADC;
+    int32_t Q_ADC;
     double I_load;
     double Q_load;
     double I_cal_real;
@@ -209,6 +211,7 @@ typedef enum MAX30009_CURRENT_AMP_ENUM
     MAX30009_CURRENT_AMP_256uA= 0x31,
     MAX30009_CURRENT_AMP_640uA= 0x32,
     MAX30009_CURRENT_AMP_1_28mA=0x33,
+    MAX30009_CURRENT_ERROR=0xFF,
 }MAX30009_CURRENT_AMP_ENUM_TYPE;
 
 const uint8_t MAX30009_VOLTAGE_AMP_ENUM_VALUE_LIST[]={0x00,0x01,0x02,0x03};
@@ -457,14 +460,14 @@ typedef enum MAX30009_CALIB_SOURCE_ENUM
 typedef struct MAX30009_CALIB_DATA
 {
     MAX30009_CALIB_STATE_ENUM_TYPE calib_state;
-    MAX30009_CALIB_SOURCE_ENUM_TYPE calib_source;
-    uint32_t delay_in_calib;
-    bool need_full_FIFO_buffer;
+    uint32_t need_FIFO_buffer_data_count;
+    uint32_t delay_for_stabile_data;
 
     double ref_value; //in milliohms
     MAX30009_CURRENT_AMP_ENUM_TYPE calibrate_current;
     MAX30009_BIOZ_TOTAL_GAIN_ENUM_TYPE calibrate_gain;
     uint32_t calibrate_frequency;
+    MAX30009_BIOZ_INPUT_HP_FILTER_VALUE_ENUM_TYPE input_filter;
 
     int32_t I_offset;
     int32_t Q_offset;
@@ -472,6 +475,8 @@ typedef struct MAX30009_CALIB_DATA
     int32_t Q_cal_in_ADC;
     double I_cal_in;
     double Q_cal_in;
+    double I_cal_quad_ADC;
+    double Q_cal_quad_ADC;
     double I_cal_quad;
     double Q_cal_quad;
     double I_coef;
@@ -484,7 +489,6 @@ typedef struct MAX30009_CALIB_DATA
     double Q_phase_cos;
     double Q_phase_sin;
 
-    uint16_t FIFO_data_count;
 
 }MAX30009_CALIB_DATA_TYPE;
 

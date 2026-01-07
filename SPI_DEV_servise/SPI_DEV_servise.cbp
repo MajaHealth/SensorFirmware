@@ -12,6 +12,7 @@
 				<Option type="1" />
 				<Option compiler="gcc" />
 				<Compiler>
+					<Add option="-std=gnu17" />
 					<Add option="-g" />
 					<Add directory="include" />
 					<Add directory="/home/vtt/Desktop/SPI_DEV_servise/" />
@@ -19,9 +20,11 @@
 					<Add directory="VTK" />
 					<Add directory="ADS1293_LIB" />
 					<Add directory="MAX30009_LIB" />
+					<Add directory="/home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB" />
 				</Compiler>
 				<Linker>
 					<Add library="gpiod" />
+					<Add library="fltk" />
 				</Linker>
 			</Target>
 			<Target title="Release">
@@ -36,21 +39,28 @@
 					<Add directory="VTK" />
 					<Add directory="MAX30009_LIB" />
 					<Add directory="ADS1293_LIB" />
+					<Add directory="/home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
 					<Add library="gpiod" />
+					<Add library="fltk" />
 				</Linker>
 			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
+			<Add option="-std=c++17" />
 			<Add option="-fexceptions" />
 			<Add directory="WS281x" />
 		</Compiler>
 		<Unit filename="ADS1293_LIB/ADS1293_IO.h" />
 		<Unit filename="ADS1293_LIB/ADS1293_LIB.h" />
 		<Unit filename="ADS1293_LIB/ADS1293_register_map.h" />
+		<Unit filename="MAX30009_LIB/MAX30009_STATIC.h" />
+		<Unit filename="MAX30009_LIB/MAX30009_base_cal_table.h" />
+		<Unit filename="MAX30009_LIB/MAX30009_data_storage.h" />
+		<Unit filename="MAX30009_LIB/MAX30009_user_set.h" />
 		<Unit filename="MAX30009_LIB/max30009_data_struct.h" />
 		<Unit filename="MAX30009_LIB/max30009_ext_mux.h" />
 		<Unit filename="MAX30009_LIB/max30009_lib.h" />
@@ -91,6 +101,7 @@
 		<Unit filename="include/JSON_TCP_sever.h" />
 		<Unit filename="include/MAX30009_process.h" />
 		<Unit filename="include/WS2812_process.h" />
+		<Unit filename="include/debug_window.h" />
 		<Unit filename="include/json.hpp" />
 		<Unit filename="main.cpp" />
 		<Unit filename="src/ADS1293_process.cpp" />
