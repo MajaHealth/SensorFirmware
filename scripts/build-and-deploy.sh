@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-PI_IP="${PI_IP:-192.168.29.175}"
+PI_IP="${PI_IP:-192.168.1.21}"
 PI_USER="${PI_USER:-pi}"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_TESTS="${RUN_TESTS:-0}"
