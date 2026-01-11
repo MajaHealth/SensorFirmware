@@ -1,0 +1,96 @@
+# Build outputs and artifacts
+build-output/
+build/
+bin/
+obj/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+# Service binaries (built from source)
+services/*/bin/
+services/*/obj/
+services/power-service/bin/
+services/power-service/obj/
+services/spi-service/bin/
+services/spi-service/obj/
+
+# Build artifacts
+*.sha256
+*.sbom.json
+
+# Calibration data (generated at runtime)
+services/spi-service/calib/*.json
+services/spi-service/base_table.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Test results
+/tmp/test-results/
+tests/results/
+*.jsonl
+*.html
+test-report.html
+analysis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+!docker/arm-toolchain.cmake
+
+# Docker
+.dockerignore
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+3.txt
+json protocol.txt
+
+# Editor backup files
+*~
+*.bak
+*.orig
