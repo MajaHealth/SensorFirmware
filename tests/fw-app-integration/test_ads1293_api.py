@@ -48,7 +48,6 @@ def test_ads1293_settings_configuration(test_config):
         request = {
             "type": "settings",
             "enable_conversion": True,
-            "power_enable": True,
             "R2_rate": expected_r2_rate,
             "R3_rate": expected_r3_rate
         }
@@ -67,10 +66,6 @@ def test_ads1293_settings_configuration(test_config):
             "Conversion should be enabled"
         print("  ✓ Conversion enabled")
 
-        assert response["power_enable"] == True, \
-            "Power should be enabled"
-        print("  ✓ Power enabled")
-
         assert response["R2_rate"] == expected_r2_rate, \
             f"Expected R2_rate={expected_r2_rate}, got {response['R2_rate']}"
         print(f"  ✓ R2_rate = {response['R2_rate']}")
@@ -78,6 +73,10 @@ def test_ads1293_settings_configuration(test_config):
         assert response["R3_rate"] == expected_r3_rate, \
             f"Expected R3_rate={expected_r3_rate}, got {response['R3_rate']}"
         print(f"  ✓ R3_rate = {response['R3_rate']}")
+
+        # Verify R1_rate is also returned (should default to 4)
+        assert "R1_rate" in response, "Response should include R1_rate"
+        print(f"  ✓ R1_rate = {response['R1_rate']} (default)")
 
     print(f"\n{'='*60}")
     print(f"✓ Test PASSED: ADS1293 settings configured successfully")
@@ -110,8 +109,7 @@ def test_ads1293_get_data_basic(test_config):
         print(f"\n[Step 1] Enabling conversion...")
         settings_request = {
             "type": "settings",
-            "enable_conversion": True,
-            "power_enable": True
+            "enable_conversion": True
         }
         response = client.send(settings_request)
         assert response["type"] == "actual_settings"
@@ -165,8 +163,9 @@ def test_ads1293_power_off(test_config):
 
     Steps:
     1. Connect to ADS1293
-    2. Send poweroff request
-    3. Verify power_is_off response
+    2. Enable conversion first (to ensure sensor is on)
+    3. Send poweroff request
+    4. Verify power_is_off response
     """
     ads_config = test_config['services']['ads1293']
 
@@ -176,20 +175,29 @@ def test_ads1293_power_off(test_config):
 
     with TCPClient(ads_config['host'], ads_config['port']) as client:
 
-        print(f"\n[Step 1] Sending power off request...")
-        request = {
+        # Step 1: Enable conversion first
+        print(f"\n[Step 1] Enabling conversion first...")
+        settings_request = {
             "type": "settings",
-            "power_enable": False
+            "enable_conversion": True
         }
-        response = client.send(request)
+        response = client.send(settings_request)
+        assert response["type"] == "actual_settings"
+        print("  ✓ Conversion enabled")
+
+        # Step 2: Send poweroff request
+        print(f"\n[Step 2] Sending poweroff request...")
+        poweroff_request = {
+            "type": "poweroff"
+        }
+        response = client.send(poweroff_request)
 
         print(f"  Response: {response}")
 
-        print(f"\n[Step 2] Validating response...")
-        assert response["type"] == "actual_settings", \
-            f"Expected 'actual_settings', got '{response['type']}'"
-        assert response["power_enable"] == False, \
-            f"Expected power_enable=False, got {response['power_enable']}"
+        # Step 3: Validate response
+        print(f"\n[Step 3] Validating response...")
+        assert response["type"] == "power_is_off", \
+            f"Expected 'power_is_off', got '{response['type']}'"
         print("  ✓ Power disabled successfully")
 
     print(f"\n{'='*60}")

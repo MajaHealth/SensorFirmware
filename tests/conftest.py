@@ -6,6 +6,40 @@ import yaml
 import os
 from pathlib import Path
 
+
+def pytest_configure(config):
+    """Register custom markers to avoid warnings."""
+    config.addinivalue_line(
+        "markers", "hardware: tests that require actual hardware sensors"
+    )
+    config.addinivalue_line(
+        "markers", "ads1293: tests for ADS1293 ECG sensor"
+    )
+    config.addinivalue_line(
+        "markers", "max30009: tests for MAX30009 BIOZ sensor"
+    )
+    config.addinivalue_line(
+        "markers", "ws2812: tests for WS2812 LED controller"
+    )
+    config.addinivalue_line(
+        "markers", "quick: quick tests (< 5 minutes)"
+    )
+    config.addinivalue_line(
+        "markers", "slow: slow tests (5-60 minutes)"
+    )
+    config.addinivalue_line(
+        "markers", "long: long-duration tests (> 1 hour)"
+    )
+    config.addinivalue_line(
+        "markers", "api: API/protocol validation tests"
+    )
+    config.addinivalue_line(
+        "markers", "fw_app: firmware-application integration tests"
+    )
+    config.addinivalue_line(
+        "markers", "invalid_params: invalid parameter handling tests"
+    )
+
 @pytest.fixture(scope="session")
 def test_config():
     """Load test configuration from YAML file."""

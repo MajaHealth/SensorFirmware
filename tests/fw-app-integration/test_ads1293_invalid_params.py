@@ -35,6 +35,7 @@ def ads1293_client(test_config):
 @pytest.mark.fw_app
 @pytest.mark.ads1293
 @pytest.mark.invalid_params
+@pytest.mark.quick
 def test_invalid_r1_rate(ads1293_client):
     """
     Test Case 41.1: Invalid R1_rate values
@@ -92,6 +93,7 @@ def test_invalid_r1_rate(ads1293_client):
 @pytest.mark.fw_app
 @pytest.mark.ads1293
 @pytest.mark.invalid_params
+@pytest.mark.quick
 def test_invalid_r2_rate(ads1293_client):
     """
     Test Case 41.2: Invalid R2_rate values
@@ -149,6 +151,7 @@ def test_invalid_r2_rate(ads1293_client):
 @pytest.mark.fw_app
 @pytest.mark.ads1293
 @pytest.mark.invalid_params
+@pytest.mark.quick
 def test_invalid_r3_rate(ads1293_client):
     """
     Test Case 41.3: Invalid R3_rate values
@@ -206,6 +209,7 @@ def test_invalid_r3_rate(ads1293_client):
 @pytest.mark.fw_app
 @pytest.mark.ads1293
 @pytest.mark.invalid_params
+@pytest.mark.quick
 def test_multiple_invalid_rates(ads1293_client):
     """
     Test Case 41.4: Multiple invalid rate parameters simultaneously
@@ -261,6 +265,7 @@ def test_multiple_invalid_rates(ads1293_client):
 @pytest.mark.fw_app
 @pytest.mark.ads1293
 @pytest.mark.invalid_params
+@pytest.mark.quick
 def test_missing_rate_parameters(ads1293_client):
     """
     Test Case 41.5: Missing rate parameters (use defaults)

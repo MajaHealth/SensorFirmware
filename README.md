@@ -63,14 +63,23 @@ The test architecture is designed to run pytest **on your laptop** while connect
 └─────────────────┘                          └──────────────────┘
 ```
 
-### Quick Smoke Tests
+### Quick Command Reference
 
 ```bash
-# Activate virtual environment
+# Activate virtual environment first
 source venv/bin/activate
 
-# Run quick validation tests (< 5 min)
-./scripts/run-tests-remote.sh $PI_IP -m quick
+# Common test commands:
+./scripts/run-tests-remote.sh $PI_IP -m quick                    # Quick validation (8 tests, ~3 min)
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/  # All FW-APP tests (8 tests, ~3 min)
+./scripts/run-tests-remote.sh $PI_IP tests/hardware-integration/test_ads1293_ecg.py  # 60s ECG test
+./scripts/run-tests-remote.sh $PI_IP tests/  # All tests (13 tests, 1-4 hours)
+
+# Run specific test function:
+./scripts/run-tests-remote.sh $PI_IP <file_path>::<test_function_name>
+
+# Run with options:
+./scripts/run-tests-remote.sh $PI_IP tests/ -vv --maxfail=1 --html=report.html
 ```
 
 ### Hardware Integration Tests
@@ -97,49 +106,141 @@ source venv/bin/activate
 ./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/test_ads1293_invalid_params.py::test_invalid_r2_rate
 ```
 
-### Running Tests by Markers
+### Complete Test Command Reference
 
+#### Run Individual Test Function
 ```bash
-# ADS1293 tests only
-./scripts/run-tests-remote.sh $PI_IP -m ads1293
+# Syntax: <script> <IP> <file_path>::<function_name>
 
-# MAX30009 tests only
-./scripts/run-tests-remote.sh $PI_IP -m max30009
-
-# Quick tests only (< 5 min)
-./scripts/run-tests-remote.sh $PI_IP -m quick
-
-# Long duration tests (> 1 hour)
-./scripts/run-tests-remote.sh $PI_IP -m long
-
-# Invalid parameter tests
-./scripts/run-tests-remote.sh $PI_IP -m invalid_params
+# Examples:
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/test_ads1293_api.py::test_ads1293_settings_configuration
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/test_ads1293_invalid_params.py::test_invalid_r2_rate
+./scripts/run-tests-remote.sh $PI_IP tests/hardware-integration/test_ads1293_ecg_long.py::test_ads1293_ecg_1hr[60]
 ```
 
-### Advanced Pytest Options
-
+#### Run Full Test File
 ```bash
-# Run with verbose output
-./scripts/run-tests-remote.sh $PI_IP tests/hardware-integration/ -vv
+# All tests in one file
+
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/test_ads1293_api.py  # 3 tests
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/test_ads1293_invalid_params.py  # 5 tests
+./scripts/run-tests-remote.sh $PI_IP tests/hardware-integration/test_ads1293_ecg.py  # 1 test
+```
+
+#### Run Full Folder
+```bash
+# All tests in directory
+
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/  # 8 tests, ~3 min
+./scripts/run-tests-remote.sh $PI_IP tests/hardware-integration/  # 5 tests, 1-4 hours
+./scripts/run-tests-remote.sh $PI_IP tests/  # All 13 tests
+```
+
+#### Run by Test Markers
+```bash
+# Quick validation (8 FW-APP tests, ~3 min)
+./scripts/run-tests-remote.sh $PI_IP -m quick
+
+# API protocol validation (3 tests, ~1 min)
+./scripts/run-tests-remote.sh $PI_IP -m api
+
+# Invalid parameter tests (5 tests, ~2 min)
+./scripts/run-tests-remote.sh $PI_IP -m invalid_params
+
+# Hardware integration (5 tests, 1-4 hours)
+./scripts/run-tests-remote.sh $PI_IP -m hardware
+
+# Long duration tests (4 tests, 4 hours)
+./scripts/run-tests-remote.sh $PI_IP -m long
+
+# All ADS1293 tests (13 tests)
+./scripts/run-tests-remote.sh $PI_IP -m ads1293
+
+# Combine markers (AND)
+./scripts/run-tests-remote.sh $PI_IP -m "ads1293 and quick"
+
+# Combine markers (OR)
+./scripts/run-tests-remote.sh $PI_IP -m "api or invalid_params"
+```
+
+#### Run by Keyword Pattern
+```bash
+# Run tests matching pattern
+./scripts/run-tests-remote.sh $PI_IP tests/ -k "invalid"
+./scripts/run-tests-remote.sh $PI_IP tests/ -k "r2"
+./scripts/run-tests-remote.sh $PI_IP tests/hardware-integration/test_ads1293_ecg_long.py -k "bpm-60"
+
+# Multiple patterns (OR)
+./scripts/run-tests-remote.sh $PI_IP tests/ -k "bpm-60 or bpm-120"
+
+# Exclude pattern
+./scripts/run-tests-remote.sh $PI_IP tests/ -k "not long"
+```
+
+#### Advanced Options
+```bash
+# Verbose output
+./scripts/run-tests-remote.sh $PI_IP tests/ -v  # Verbose
+./scripts/run-tests-remote.sh $PI_IP tests/ -vv  # Extra verbose
 
 # Stop on first failure
 ./scripts/run-tests-remote.sh $PI_IP tests/ --maxfail=1
 
-# Run specific test function
-./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/test_ads1293_invalid_params.py::test_invalid_r3_rate
-
 # Generate HTML report
 ./scripts/run-tests-remote.sh $PI_IP tests/ --html=report.html --self-contained-html
-```
 
-### Restarting Services Before Tests
+# Set timeout per test
+./scripts/run-tests-remote.sh $PI_IP tests/ --timeout=300  # 5 minutes
 
-If you've deployed new firmware or want to ensure a clean state:
+# Show local variables on failure
+./scripts/run-tests-remote.sh $PI_IP tests/ -l
 
-```bash
-# Restart services and run tests
+# Restart services before testing
 ./scripts/run-tests-remote.sh $PI_IP --restart-services -m quick
+
+# Combine options
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/ -vv --maxfail=1 --html=report.html
 ```
+
+### Test Marker Reference
+
+| Marker | Description | Tests | Duration |
+|--------|-------------|-------|----------|
+| `quick` | Quick validation tests | 8 | ~3 min |
+| `api` | API protocol validation | 3 | ~1 min |
+| `invalid_params` | Parameter validation | 5 | ~2 min |
+| `fw_app` | FW-APP integration | 8 | ~3 min |
+| `hardware` | Hardware integration | 5 | 1-4 hours |
+| `slow` | Slow tests (60s ECG) | 1 | ~1 min |
+| `long` | Long duration (1hr ECG) | 4 | 4 hours |
+| `ads1293` | All ADS1293 tests | 13 | 1-4 hours |
+| `max30009` | MAX30009 tests | TBD | - |
+| `ws2812` | LED controller tests | TBD | - |
+
+### Complete Test Inventory
+
+**FW-APP Integration Tests** (`tests/fw-app-integration/`) - 8 tests, ~3 min total:
+
+| File | Test Function | What It Tests | Duration |
+|------|---------------|---------------|----------|
+| `test_ads1293_api.py` | `test_ads1293_settings_configuration` | JSON settings request/response | ~20s |
+| `test_ads1293_api.py` | `test_ads1293_get_data_basic` | Data retrieval and sync markers | ~20s |
+| `test_ads1293_api.py` | `test_ads1293_power_off` | Poweroff command | ~20s |
+| `test_ads1293_invalid_params.py` | `test_invalid_r1_rate` | Invalid R1 rate handling | ~30s |
+| `test_ads1293_invalid_params.py` | `test_invalid_r2_rate` | Invalid R2 rate handling | ~30s |
+| `test_ads1293_invalid_params.py` | `test_invalid_r3_rate` | Invalid R3 rate handling | ~30s |
+| `test_ads1293_invalid_params.py` | `test_multiple_invalid_rates` | Multiple invalid params | ~10s |
+| `test_ads1293_invalid_params.py` | `test_missing_rate_parameters` | Default parameter behavior | ~10s |
+
+**Hardware Integration Tests** (`tests/hardware-integration/`) - 5 tests, 1-4 hours total:
+
+| File | Test Function | What It Tests | Duration | Hardware |
+|------|---------------|---------------|----------|----------|
+| `test_ads1293_ecg.py` | `test_ads1293_ecg_60s` | 60-second ECG recording | ~1 min | ADS1293 + ECG sim |
+| `test_ads1293_ecg_long.py` | `test_ads1293_ecg_1hr[30]` | 1hr ECG at 30 BPM | 1 hour | ADS1293 + ECG sim |
+| `test_ads1293_ecg_long.py` | `test_ads1293_ecg_1hr[60]` | 1hr ECG at 60 BPM | 1 hour | ADS1293 + ECG sim |
+| `test_ads1293_ecg_long.py` | `test_ads1293_ecg_1hr[120]` | 1hr ECG at 120 BPM | 1 hour | ADS1293 + ECG sim |
+| `test_ads1293_ecg_long.py` | `test_ads1293_ecg_1hr[180]` | 1hr ECG at 180 BPM | 1 hour | ADS1293 + ECG sim |
 
 ## Development Workflow
 
