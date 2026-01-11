@@ -1,0 +1,50 @@
+{
+  "test_name": "ICG-ECG 1-Hour Drift Analysis (Enhanced Debug)",
+  "timestamp": "2025-10-31T15:48:38.708398",
+  "duration_seconds": 3600,
+  "configuration": {
+    "icg": {
+      "type": "settings",
+      "power_enable": true,
+      "measure_enable": true,
+      "measure_frequency": 400,
+      "stimulate_table_index": 4,
+      "stimulate_frequency": 7,
+      "ext_MUX_state": 1,
+      "out_HP_filter": 0,
+      "out_LP_filter": 0
+    },
+    "ecg": {
+      "type": "settings",
+      "power_enable": true,
+      "enable_conversion": true,
+      "R2_rate": 4,
+      "R3_rate": 16
+    },
+    "icg_sampling_rate": 400,
+    "ecg_sampling_rate": 400,
+    "sync_threshold_ms": 50.0,
+    "data_interval_seconds": 1.0
+  },
+  "results": {
+    "total_requests": 2990,
+    "icg_sync_count": 3598,
+    "ecg_sync_count": 3600,
+    "anomaly_summary": {
+      "missing_icg_syncs": 3,
+      "missing_ecg_syncs": 1,
+      "sample_count_issues_icg": 2,
+      "sample_count_issues_ecg": 1,
+      "multiple_syncs_icg": 608,
+      "multiple_syncs_ecg": 610,
+      "no_data_icg": 0,
+      "no_data_ecg": 1,
+      "time_interval_issues": 3
+    }
+  },
+  "output_files": {
+    "requests_log": "requests_log_20251031_144829.csv",
+    "sync_analysis": "sync_analysis_20251031_144829.csv",
+    "anomaly_report": "anomalies_report_20251031_144829.txt"
+  }
+}

@@ -1,0 +1,68 @@
+Test ID,Area,Objective,Linked IDs (Hazard/SRS/Task),Preconditions,Steps,Expected,Dataset,Priority,Result,Defect ID
+PWR-001,Power Control Communication,Verify PWRCNTR TCP server accepts connections on port 501,SRS-PWR-001,"power_control_servise running, network available","1. Start power_control_servise
+2. Connect to localhost:501 via telnet
+3. Verify connection established","TCP connection established successfully, server ready to receive JSON commands",N/A,High,,
+PWR-002,GPIO Power Control,Verify GPIO-based power control switches power domains correctly,"SRS-PWR-002, HAZ-006","libgpiod configured, GPIO pins accessible","1. Send JSON command to enable power domain
+2. Verify GPIO pin state using gpio-tools
+3. Measure voltage on power rail
+4. Send disable command
+5. Verify power off","GPIO state changes correctly, power rail voltage correct (e.g., 3.3V/5V), power cycles cleanly",Power on/off cycles,Critical,,
+PWR-003,Battery Monitoring,Verify I2C battery status monitoring via SMBus,"SRS-PWR-003, HAZ-007","Battery connected, I2C bus functional","1. Send JSON request for battery status
+2. Verify voltage reading accuracy (±50mV)
+3. Verify current reading
+4. Verify state of charge (SOC) percentage
+5. Verify temperature reading","Battery voltage accurate, SOC matches expected value, temperature reasonable (15-40°C), data refreshes every 3 seconds",Battery at 50% SOC,Critical,,
+PWR-004,Battery Reading Throttle,Verify battery reading throttled to every 3 seconds,SRS-PWR-004,"Service running, battery monitoring active","1. Enable timestamp logging for battery reads
+2. Monitor I2C transactions for 60 seconds
+3. Count number of battery reads
+4. Verify timing between reads","Battery read exactly every 3 seconds (±100ms), approximately 20 reads in 60 seconds",60 second monitoring,Medium,,
+PWR-005,Button Input Handling,Verify button input processed correctly with debouncing,SRS-PWR-005,"Button connected to GPIO, service running","1. Press button briefly (<100ms)
+2. Press button long (>1s)
+3. Rapidly press button multiple times
+4. Monitor button event reporting via JSON","Short press detected, long press detected, no double-triggers from bounce, events reported accurately",Button press patterns,High,,
+PWR-006,Buzzer Control,Verify buzzer control with different patterns and durations,SRS-PWR-006,"Buzzer connected, service running","1. Send JSON command for single beep (100ms)
+2. Send command for double beep pattern
+3. Send command for continuous tone (1s)
+4. Test buzzer disable command","Buzzer responds accurately to all patterns, timing precise (±10ms), can be interrupted",Buzzer test patterns,Medium,,
+PWR-007,Main Loop Timing,Verify main loop executes with 100ms sleep without timing violations,SRS-PWR-007,Service running with all features active,"1. Enable timestamp logging in main loop
+2. Monitor loop execution time for 60 seconds
+3. Calculate loop period statistics
+4. Check for timing jitter","Loop period ~100ms ± 10ms, consistent timing, no significant delays",600 loop iterations,Medium,,
+PWR-008,JSON Request/Response,Verify JSON communication with atomic flags and thread safety,SRS-PWR-008,Service running,"1. Send concurrent JSON requests from multiple clients
+2. Send malformed JSON
+3. Send valid requests rapidly
+4. Monitor request/response flags","Thread-safe operation, no race conditions, invalid JSON rejected, all valid requests processed in order",Concurrent requests,High,,
+PWR-009,I2C Communication Reliability,Verify SMBus/I2C communication handles errors gracefully,"SRS-PWR-009, HAZ-008",I2C bus functional,"1. Disconnect battery during active monitoring
+2. Monitor I2C error handling
+3. Reconnect battery
+4. Verify recovery
+5. Check error logging","I2C timeout detected, error logged, service remains stable, automatic recovery when battery reconnected",Fault injection,High,,
+PWR-010,Low Battery Handling,Verify low battery detection and notification,"SRS-PWR-010, HAZ-009",Battery at <10% SOC or use battery simulator,"1. Monitor battery SOC
+2. Drain battery to <10%
+3. Verify low battery notification sent
+4. Check critical battery threshold (<5%)
+5. Verify shutdown sequence initiated","Low battery warning at 10%, critical warning at 5%, notification sent via JSON, graceful shutdown initiated",Low battery scenario,Critical,,
+PWR-011,Power Sequencing,Verify correct power-up and power-down sequencing,"SRS-PWR-011, HAZ-010",All power domains available,"1. Send power-up command
+2. Monitor GPIO timing with oscilloscope
+3. Verify power rail sequencing
+4. Send power-down command
+5. Verify reverse sequencing","Power rails enable in correct order with proper delays, power-down sequence is reverse of power-up, no voltage spikes",Oscilloscope capture,Critical,,
+PWR-012,Concurrent Operations,"Verify button, buzzer, and battery monitoring work concurrently",SRS-PWR-012,All peripherals connected,"1. Start battery monitoring
+2. Press button while buzzer active
+3. Monitor all features simultaneously for 5 minutes
+4. Verify no interference","All features work independently, no missed button presses, battery reads continue, buzzer unaffected",5 minute test,High,,
+PWR-013,Service Restart Recovery,Verify service restarts cleanly and restores power state,SRS-PWR-013,Service running with power enabled,"1. Enable power domains
+2. Kill service with SIGTERM
+3. Verify power state maintained by hardware
+4. Restart service
+5. Verify state synchronization","Service shuts down cleanly, power state preserved or safely restored, no GPIO conflicts on restart",N/A,High,,
+PWR-014,Temperature Monitoring,Verify battery temperature monitoring and over-temperature protection,"SRS-PWR-014, HAZ-011",Battery with temperature sensor,"1. Monitor normal temperature (20-30°C)
+2. Heat battery to 45°C (use controlled environment)
+3. Verify over-temperature warning
+4. Heat to 50°C
+5. Verify shutdown initiated","Temperature read accurately (±2°C), warning at 45°C, shutdown at 50°C, notification sent to application",Temperature sweep,Critical,,
+PWR-015,Inter-Service Communication,Verify power_control_servise can coordinate with SPI_DEV_servise,"SRS-PWR-015, SRS-SPI-016",Both services running,"1. Send power enable to power_control_servise
+2. Verify SPI_DEV_servise detects power and initializes sensors
+3. Send low battery command
+4. Verify SPI_DEV_servise receives notification and saves data
+5. Coordinate shutdown","Services communicate through application layer, coordinated startup/shutdown, data preserved on low battery",Integration test,High,,

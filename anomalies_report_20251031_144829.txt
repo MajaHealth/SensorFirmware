@@ -1,0 +1,75 @@
+================================================================================
+ICG-ECG DRIFT ANALYSIS - ANOMALY REPORT
+================================================================================
+
+TEST SUMMARY
+--------------------------------------------------------------------------------
+Test Start: 2025-10-31T14:48:35.528167
+Test Duration: 3600 seconds (60.0 minutes)
+Total Requests: 2990
+Data Request Interval: 1.0 seconds
+ICG Sampling Rate: 400 Hz
+ECG Sampling Rate: 400 Hz
+
+ANOMALY STATISTICS
+--------------------------------------------------------------------------------
+Total Anomalies Detected: 1229
+
+Missing ICG Sync Markers: 3
+  Sync numbers: [82, 1481, 3425]
+Missing ECG Sync Markers: 1
+  Sync numbers: [3682]
+
+ICG Sample Count Issues: 2
+  Sync 1480: 783 samples (expected 400)
+  Sync 3424: 782 samples (expected 400)
+ECG Sample Count Issues: 1
+  Sync 82: 296 samples (expected 400)
+
+Multiple ICG Syncs in Single Packet: 608
+  Request 1: [83, 84]
+  Request 5: [88, 89]
+  Request 10: [94, 95]
+  Request 15: [100, 101]
+  Request 20: [106, 107]
+  Request 25: [112, 113]
+  Request 30: [118, 119]
+  Request 35: [124, 125]
+  Request 40: [130, 131]
+  Request 45: [136, 137]
+  ... and 598 more
+Multiple ECG Syncs in Single Packet: 610
+  Request 2: [82, 83, 84]
+  Request 5: [87, 88]
+  Request 10: [93, 94]
+  Request 15: [99, 100]
+  Request 20: [105, 106]
+  Request 25: [111, 112]
+  Request 30: [117, 118]
+  Request 35: [123, 124]
+  Request 40: [129, 130]
+  Request 45: [135, 136]
+  ... and 600 more
+
+No ECG Data Received: 1 requests
+
+Time Interval Issues: 3
+  Sync 83: ECG interval 0.742s
+  Sync 1482: ICG interval 1.987s
+  Sync 1482: ECG interval 1.002s
+  Sync 3426: ICG interval 1.980s
+  Sync 3426: ECG interval 1.000s
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+- Buffer overflow detected: Multiple sync markers in single packet
+  → Increase firmware buffer size or reduce sampling rate
+- Sample drops detected: Counts deviate from expected 400
+  → Check firmware buffer management and SPI timing
+- Missing sync markers: Gaps in sync number sequence
+  → Check firmware sync injection timing and buffer flow
+- Timing drift detected: Intervals deviate from 1.0 second
+  → Check system clock stability and timing loops
+
+================================================================================

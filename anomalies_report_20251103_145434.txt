@@ -1,0 +1,95 @@
+================================================================================
+ICG-ECG DRIFT ANALYSIS - ANOMALY REPORT
+================================================================================
+
+TEST SUMMARY
+--------------------------------------------------------------------------------
+Test Start: 2025-11-03T14:54:50.629466
+Test Duration: 3600 seconds (60.0 minutes)
+Total Requests: 3601
+Data Request Interval: 1.0 seconds
+ICG Sampling Rate: 50 Hz
+ECG Sampling Rate: 32 Hz
+
+ANOMALY STATISTICS
+--------------------------------------------------------------------------------
+Total Anomalies Detected: 3663
+
+Missing ICG Sync Markers: 7
+  Sync numbers: [18, 1341, 1417, 1423, 1431, 1432, 1505]
+Missing ECG Sync Markers: 1
+  Sync numbers: [3617]
+
+ICG Sample Count Issues: 5
+  Sync 1340: 97 samples (expected 50)
+  Sync 1416: 96 samples (expected 50)
+  Sync 1422: 97 samples (expected 50)
+  Sync 1430: 143 samples (expected 50)
+  Sync 1504: 95 samples (expected 50)
+ECG Sample Count Issues: 3598
+  Sync 18: 25 samples (expected 50)
+  Sync 19: 25 samples (expected 50)
+  Sync 20: 25 samples (expected 50)
+  Sync 21: 25 samples (expected 50)
+  Sync 22: 25 samples (expected 50)
+  Sync 23: 25 samples (expected 50)
+  Sync 24: 25 samples (expected 50)
+  Sync 25: 25 samples (expected 50)
+  Sync 26: 25 samples (expected 50)
+  Sync 27: 25 samples (expected 50)
+  ... and 3588 more
+
+Multiple ICG Syncs in Single Packet: 8
+  Request 1257: [1273, 1274]
+  Request 1327: [1343, 1344]
+  Request 1330: [1346, 1347]
+  Request 1410: [1426, 1427]
+  Request 1413: [1429, 1430]
+  Request 1493: [1509, 1510]
+  Request 1497: [1513, 1514]
+  Request 1573: [1589, 1590]
+Multiple ECG Syncs in Single Packet: 6
+  Request 1785: [1800, 1801]
+  Request 1876: [1891, 1892]
+  Request 1888: [1903, 1904]
+  Request 1971: [1986, 1987]
+  Request 2067: [2082, 2083]
+  Request 2159: [2174, 2175]
+
+
+Time Interval Issues: 38
+  Sync 700: ICG interval 0.983s
+  Sync 700: ECG interval 0.933s
+  Sync 1342: ICG interval 2.024s
+  Sync 1342: ECG interval 1.002s
+  Sync 1418: ICG interval 2.004s
+  Sync 1418: ECG interval 1.003s
+  Sync 1424: ICG interval 1.961s
+  Sync 1424: ECG interval 1.002s
+  Sync 1425: ICG interval 1.063s
+  Sync 1425: ECG interval 1.001s
+  Sync 1433: ICG interval 3.004s
+  Sync 1433: ECG interval 1.001s
+  Sync 1506: ICG interval 2.023s
+  Sync 1506: ECG interval 1.001s
+  Sync 1512: ICG interval 1.083s
+  Sync 1512: ECG interval 1.001s
+  Sync 1513: ICG interval 0.941s
+  Sync 1513: ECG interval 1.001s
+  Sync 1542: ICG interval 1.061s
+  Sync 1542: ECG interval 1.001s
+  ... and 28 more
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+- Buffer overflow detected: Multiple sync markers in single packet
+  → Increase firmware buffer size or reduce sampling rate
+- Sample drops detected: Counts deviate from expected 400
+  → Check firmware buffer management and SPI timing
+- Missing sync markers: Gaps in sync number sequence
+  → Check firmware sync injection timing and buffer flow
+- Timing drift detected: Intervals deviate from 1.0 second
+  → Check system clock stability and timing loops
+
+================================================================================

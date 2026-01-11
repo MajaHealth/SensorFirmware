@@ -1,0 +1,62 @@
+Test ID,Area,Objective,Linked IDs (Hazard/SRS/Task),Preconditions,Steps,Expected,Dataset,Priority,Result,Defect ID
+SPI-001,MAX30009 Communication,Verify MAX30009 TCP server accepts connections on port 30009,SRS-SPI-001,"SPI_DEV_servise running, network available","1. Start SPI_DEV_servise
+2. Connect to localhost:30009 via telnet
+3. Verify connection established","TCP connection established successfully, server ready to receive JSON commands",N/A,High,,
+SPI-002,MAX30009 Data Acquisition,Verify MAX30009 bioimpedance data streaming with I/Q samples,"SRS-SPI-002, HAZ-001","MAX30009 initialized, sensor configured, hardware connected","1. Send JSON start command to port 30009
+2. Configure frequency (25Hz-450kHz) and current (64μA-1.28mA)
+3. Start data acquisition
+4. Verify I/Q data FIFO buffering (max 30,000 samples)","I/Q data stream received continuously, FIFO does not overflow, data format correct","freq=100kHz, current=500μA",Critical,,
+SPI-003,MAX30009 Sync Marks,Verify sync marks injected every 1 second with magic number -99999,SRS-SPI-003,MAX30009 streaming data,"1. Start MAX30009 data acquisition
+2. Monitor data stream for 60 seconds
+3. Count sync marks
+4. Verify magic number -99999 at sync positions","Exactly 60 sync marks with value -99999, evenly spaced at 1-second intervals",60 second capture,High,,
+SPI-004,MAX30009 Calibration,Verify automated calibration system across 17 frequency points × 5 current levels,SRS-SPI-004,"Calibration reference load connected, calib/ directory exists","1. Send calibration start command
+2. Monitor calibration progress (85 total points)
+3. Verify JSON files created in calib/ with format {current_index}_{freq_index}.json
+4. Validate calibration data structure","85 calibration files created successfully, data within expected ranges, no missing points",Full calibration sweep,High,,
+SPI-005,ADS1293 Communication,Verify ADS1293 TCP server accepts connections on port 1293,SRS-SPI-005,"SPI_DEV_servise running, network available","1. Start SPI_DEV_servise
+2. Connect to localhost:1293 via telnet
+3. Verify connection established","TCP connection established successfully, server ready to receive JSON commands",N/A,High,,
+SPI-006,ADS1293 ECG Acquisition,Verify multi-channel ECG data acquisition and streaming,"SRS-SPI-006, HAZ-002","ADS1293 initialized, ECG electrodes connected","1. Send JSON start command to port 1293
+2. Configure ECG channels
+3. Start data acquisition
+4. Monitor data quality and continuity","Multi-channel ECG data streamed continuously, no data gaps, signal quality acceptable",3-lead ECG,Critical,,
+SPI-007,ADS1293 Sync Marks,Verify ADS1293 sync marks align with MAX30009 sync marks,SRS-SPI-007,Both MAX30009 and ADS1293 streaming data simultaneously,"1. Start both sensors simultaneously
+2. Monitor both data streams for 60 seconds
+3. Compare sync mark timestamps
+4. Calculate time drift between sensors","Sync marks aligned within ±10ms, sync counter increments match, drift < 100ms over 60 seconds",60 second dual capture,Critical,,
+SPI-008,WS2812 LED Control,Verify WS2812 LED control via TCP port 2812,SRS-SPI-008,"SPI_DEV_servise running, WS2812 LEDs connected","1. Connect to port 2812
+2. Send JSON command to set LED color (R=255, G=0, B=0)
+3. Verify LED illuminates red
+4. Test multiple colors and patterns","LEDs respond correctly to color commands, no flickering, smooth transitions",RGB test patterns,Medium,,
+SPI-009,JSON Request/Response,Verify JSON request/response mechanism with atomic flags,SRS-SPI-009,Any TCP server running,"1. Send malformed JSON to server
+2. Send valid JSON request
+3. Monitor request_ready_flag and response_ready_flag
+4. Verify response JSON format","Invalid JSON rejected gracefully, valid JSON processed, atomic flags work correctly, no race conditions",Valid/invalid JSON samples,High,,
+SPI-010,Main Loop Timing,Verify main loop executes with 500μs sleep without timing violations,SRS-SPI-010,SPI_DEV_servise running with all sensors active,"1. Start all three sensors simultaneously
+2. Monitor loop execution time with timestamps
+3. Calculate loop period statistics
+4. Check for timing jitter and delays","Loop period ~500μs ± 50μs, no missed cycles, consistent timing under load","10,000 loop iterations",High,,
+SPI-011,Concurrent Sensor Operation,Verify all three sensors operate concurrently without interference,"SRS-SPI-011, HAZ-003",All sensors connected and initialized,"1. Start MAX30009 data acquisition
+2. Start ADS1293 data acquisition
+3. Send WS2812 LED commands
+4. Monitor all data streams simultaneously for 5 minutes
+5. Check for data corruption or dropped samples","All sensors operate independently, no data corruption, no resource conflicts, sync marks remain aligned",5 minute concurrent operation,Critical,,
+SPI-012,SPI Bus Communication,Verify SPI communication reliability for MAX30009 and ADS1293,SRS-SPI-012,SPI hardware drivers initialized,"1. Read/write test registers on both devices
+2. Verify data integrity with known patterns
+3. Test at maximum SPI clock speed
+4. Monitor for SPI errors in dmesg","SPI read/write operations succeed 100%, no bit errors, no CRC failures",1000 read/write cycles,High,,
+SPI-013,FIFO Buffer Management,"Verify MAX30009 FIFO buffer handles maximum 30,000 samples without overflow","SRS-SPI-013, HAZ-004",MAX30009 configured at highest sample rate,"1. Configure MAX30009 for maximum data rate
+2. Delay reading data to fill FIFO
+3. Monitor FIFO level
+4. Read data before overflow
+5. Verify no samples lost","FIFO fills to 30,000 samples maximum, overflow flag triggers before data loss, all samples recovered",Maximum rate test,High,,
+SPI-014,Service Restart Recovery,Verify service gracefully restarts and recovers sensor state,SRS-SPI-014,Service running with active data acquisition,"1. Start data acquisition on all sensors
+2. Kill service with SIGTERM
+3. Restart service
+4. Verify sensor re-initialization
+5. Resume data acquisition","Service shuts down cleanly, all resources released, restart successful, sensors re-initialize properly",N/A,Medium,,
+SPI-015,Error Handling,Verify error handling for sensor disconnection and SPI failures,"SRS-SPI-015, HAZ-005",Service running normally,"1. Disconnect MAX30009 sensor during acquisition
+2. Monitor error messages and recovery
+3. Reconnect sensor
+4. Verify automatic recovery or manual restart needed","Error detected and logged, service remains stable, clear error message to application, recovery possible",Fault injection test,High,,
