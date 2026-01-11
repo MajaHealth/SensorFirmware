@@ -100,6 +100,13 @@ def test_ads1293_ecg_60s(test_config, results_dir):
         time.sleep(2.0)
         print("✓ Sensor ready\n")
 
+        # Flush accumulated buffer data
+        print(f"[Step 3.5] Flushing accumulated buffer...")
+        flush_response = get_sensor_data(client)
+        if flush_response["type"] == "data":
+            flushed_count = len(flush_response["data"])
+            print(f"✓ Flushed {flushed_count} accumulated samples from buffer\n")
+
         # Collect data
         print(f"[Step 4] Collecting data for {test_duration} seconds...")
         num_polls = int(test_duration / polling_interval)

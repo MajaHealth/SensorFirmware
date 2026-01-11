@@ -48,7 +48,7 @@ public:
             .rx_buf = (unsigned long)response_array,
             .len = data_size,
             .speed_hz = 5000000,
-            .delay_usecs = 5,
+            .delay_usecs = 1,
             .bits_per_word = 8,
         };
 
