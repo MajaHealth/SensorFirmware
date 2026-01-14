@@ -205,6 +205,48 @@ End-to-end tests involving multiple services.
 
 ---
 
+### Test Case 43: ADS1293 get_data Before Configuration
+
+**File:** `tests/fw-app-integration/test_ads1293_get_data_before_config.py`
+
+**Purpose:** Document firmware behavior when `get_data` is called before sensor configuration or conversion is enabled
+
+**Sub-Tests:**
+1. **test_get_data_no_configuration**: Call `get_data` immediately without any prior settings
+2. **test_get_data_after_poweroff**: Call `get_data` after sending `poweroff` command
+3. **test_get_data_conversion_disabled**: Call `get_data` with `enable_conversion=False`
+4. **test_multiple_get_data_no_config**: Call `get_data` multiple times without configuration to check consistency
+
+**Test Steps (43.1 - No Configuration):**
+1. Connect to ADS1293 service (fresh connection)
+2. Immediately send `get_data` without any settings
+3. Record response type and content
+4. Document behavior
+
+**Pass Criteria:**
+- No crashes or hangs
+- Response contains valid `type` field
+- Behavior is documented for specification clarification
+- Test documents what the firmware returns (not testing for specific behavior)
+
+**Expected Responses (to be determined):**
+- `{"type": "data", "data": []}` - Empty data array
+- `{"type": "no_measure"}` - Indicates no measurement available
+- `{"type": "error", "message": "..."}` - Error response
+- Other firmware-defined behavior
+
+**Run:**
+```bash
+# Run all Test Case 43 sub-tests
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/test_ads1293_get_data_before_config.py
+
+# Run specific sub-test
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/test_ads1293_get_data_before_config.py::test_get_data_no_configuration
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/test_ads1293_get_data_before_config.py::test_get_data_after_poweroff
+```
+
+---
+
 ### Test Case 41: Invalid ADS1293 Rate Parameters
 
 **File:** `tests/fw-app-integration/test_ads1293_invalid_params.py`

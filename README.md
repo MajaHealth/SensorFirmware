@@ -70,10 +70,10 @@ The test architecture is designed to run pytest **on your laptop** while connect
 source venv/bin/activate
 
 # Common test commands:
-./scripts/run-tests-remote.sh $PI_IP -m quick                    # Quick validation (8 tests, ~3 min)
-./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/  # All FW-APP tests (8 tests, ~3 min)
+./scripts/run-tests-remote.sh $PI_IP -m quick                    # Quick validation (12 tests, ~4 min)
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/  # All FW-APP tests (12 tests, ~4 min)
 ./scripts/run-tests-remote.sh $PI_IP tests/hardware-integration/test_ads1293_ecg.py  # 60s ECG test
-./scripts/run-tests-remote.sh $PI_IP tests/  # All tests (13 tests, 1-4 hours)
+./scripts/run-tests-remote.sh $PI_IP tests/  # All tests (17 tests, 1-4 hours)
 
 # Run specific test function:
 ./scripts/run-tests-remote.sh $PI_IP <file_path>::<test_function_name>
@@ -131,14 +131,14 @@ source venv/bin/activate
 ```bash
 # All tests in directory
 
-./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/  # 8 tests, ~3 min
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/  # 12 tests, ~4 min
 ./scripts/run-tests-remote.sh $PI_IP tests/hardware-integration/  # 5 tests, 1-4 hours
-./scripts/run-tests-remote.sh $PI_IP tests/  # All 13 tests
+./scripts/run-tests-remote.sh $PI_IP tests/  # All 17 tests
 ```
 
 #### Run by Test Markers
 ```bash
-# Quick validation (8 FW-APP tests, ~3 min)
+# Quick validation (12 FW-APP tests, ~4 min)
 ./scripts/run-tests-remote.sh $PI_IP -m quick
 
 # API protocol validation (3 tests, ~1 min)
@@ -206,20 +206,20 @@ source venv/bin/activate
 
 | Marker | Description | Tests | Duration |
 |--------|-------------|-------|----------|
-| `quick` | Quick validation tests | 8 | ~3 min |
+| `quick` | Quick validation tests | 12 | ~4 min |
 | `api` | API protocol validation | 3 | ~1 min |
 | `invalid_params` | Parameter validation | 5 | ~2 min |
-| `fw_app` | FW-APP integration | 8 | ~3 min |
+| `fw_app` | FW-APP integration | 12 | ~4 min |
 | `hardware` | Hardware integration | 5 | 1-4 hours |
 | `slow` | Slow tests (60s ECG) | 1 | ~1 min |
 | `long` | Long duration (1hr ECG) | 4 | 4 hours |
-| `ads1293` | All ADS1293 tests | 13 | 1-4 hours |
+| `ads1293` | All ADS1293 tests | 17 | 1-4 hours |
 | `max30009` | MAX30009 tests | TBD | - |
 | `ws2812` | LED controller tests | TBD | - |
 
 ### Complete Test Inventory
 
-**FW-APP Integration Tests** (`tests/fw-app-integration/`) - 8 tests, ~3 min total:
+**FW-APP Integration Tests** (`tests/fw-app-integration/`) - 12 tests, ~4 min total:
 
 | File | Test Function | What It Tests | Duration |
 |------|---------------|---------------|----------|
@@ -231,6 +231,10 @@ source venv/bin/activate
 | `test_ads1293_invalid_params.py` | `test_invalid_r3_rate` | Invalid R3 rate handling | ~30s |
 | `test_ads1293_invalid_params.py` | `test_multiple_invalid_rates` | Multiple invalid params | ~10s |
 | `test_ads1293_invalid_params.py` | `test_missing_rate_parameters` | Default parameter behavior | ~10s |
+| `test_ads1293_get_data_before_config.py` | `test_get_data_no_configuration` | get_data without config | ~10s |
+| `test_ads1293_get_data_before_config.py` | `test_get_data_after_poweroff` | get_data after poweroff | ~10s |
+| `test_ads1293_get_data_before_config.py` | `test_get_data_conversion_disabled` | get_data with conversion off | ~10s |
+| `test_ads1293_get_data_before_config.py` | `test_multiple_get_data_no_config` | Multiple get_data calls | ~10s |
 
 **Hardware Integration Tests** (`tests/hardware-integration/`) - 5 tests, 1-4 hours total:
 
