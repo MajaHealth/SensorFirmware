@@ -10,6 +10,44 @@ Sensor firmware for Raspberry Pi CM4 that provides hardware interface services f
 **Build System:** CMake with Docker-based cross-compilation
 **Language:** C++17 with some C components
 
+## Quick Workflow Reference
+
+**Complete development cycle:**
+```bash
+# 1. Set CM4 IP (do this once per session)
+export PI_IP=192.168.x.x
+
+# 2. Make firmware changes
+
+# 3. Build and deploy
+./scripts/build-and-deploy.sh
+
+# 4. Run tests
+./scripts/run-tests-remote.sh $PI_IP -m quick
+
+# 5. Analyze results
+ls /tmp/test-results/data/
+```
+
+**Common scenarios:**
+
+```bash
+# Quick validation after code change
+./scripts/build-and-deploy.sh && ./scripts/run-tests-remote.sh $PI_IP -m quick
+
+# Test specific sensor (ADS1293)
+./scripts/run-tests-remote.sh $PI_IP -m ads1293
+
+# Run single test with verbose output
+./scripts/run-tests-remote.sh $PI_IP tests/fw-app-integration/test_ads1293_api.py -vv
+
+# Hardware test with ECG simulator (60 seconds)
+./scripts/run-tests-remote.sh $PI_IP tests/hardware-integration/test_ads1293_ecg.py
+
+# Restart services and test
+./scripts/run-tests-remote.sh $PI_IP --restart-services -m quick
+```
+
 ## Build Commands
 
 ### Standard Build (Docker-based cross-compilation)
@@ -132,13 +170,28 @@ pip3 install -r tests/requirements.txt
 
 ### Test Structure
 
-Tests are organized per service:
-- `services/spi-service/tests/unit/` - C++ unit tests (gtest)
+Tests are organized into three categories:
+
+**1. Unit Tests (Python)** - `tests/unit_tests/`
+- `tests/unit_tests/power-service/` - Power service unit tests (e.g., Test #106: Shutdown handling)
+- `tests/unit_tests/spi-service/` - SPI service unit tests
+- `tests/unit_tests/gpio/` - GPIO-related unit tests
+- `tests/unit_tests/shutdown/` - Shutdown handling tests
+- Isolated component testing with mock objects
+- Fast execution (< 1 second per test typically)
+
+**2. C++ Unit Tests (gtest)**
+- `services/spi-service/tests/unit/` - C++ unit tests for SPI service
+- `services/power-service/tests/unit/` - C++ unit tests for power service
+- Low-level device library testing
+
+**3. Integration Tests (Python)**
 - `services/spi-service/tests/integration/` - Python integration tests (pytest)
-- `services/power-service/tests/unit/` - C++ unit tests (gtest)
 - `services/power-service/tests/integration/` - Python integration tests (pytest)
-- `tests/` - System-level integration tests
-- `tests/common/tcp_client.py` - Reusable TCP client for test fixtures
+- `tests/fw-app-integration/` - Firmware-application integration tests
+- `tests/hardware-integration/` - Hardware integration tests (require actual sensors)
+- `tests/common/` - Shared test utilities (`tcp_client.py`, `sensor_helpers.py`, `validators.py`, `data_logger.py`)
+- `tests/config/test_config.yaml` - Test configuration parameters
 
 ### Mock Drivers
 
@@ -149,9 +202,59 @@ Mock implementations in `services/*/tests/mocks/` enable unit testing without ha
 
 Build with mocks: `cmake -DBUILD_TESTS=ON -DENABLE_MOCKS=ON`
 
+### Test Markers
+
+Available pytest markers for filtering tests:
+
+| Marker | Description | Tests | Duration |
+|--------|-------------|-------|----------|
+| `quick` | Quick validation tests | 12 | ~4 min |
+| `api` | API protocol validation | 3 | ~1 min |
+| `invalid_params` | Parameter validation | 5 | ~2 min |
+| `fw_app` | FW-APP integration | 12 | ~4 min |
+| `hardware` | Hardware integration | 5 | 1-4 hours |
+| `slow` | Slow tests (60s ECG) | 1 | ~1 min |
+| `long` | Long duration (1hr ECG) | 4 | 4 hours |
+| `ads1293` | All ADS1293 tests | 17 | 1-4 hours |
+| `max30009` | MAX30009 tests | TBD | - |
+| `ws2812` | LED controller tests | TBD | - |
+
+### Test Configuration
+
+Test parameters are configured in `tests/config/test_config.yaml`:
+- Service connection settings (host/port)
+- Sensor-specific parameters (sampling rates, R-rates, BPM values)
+- Pass/fail thresholds
+- Output directories
+
+**Environment variable override:**
+- Set `PI_TARGET_IP` to override service host for remote testing
+- The `run-tests-remote.sh` script automatically sets this
+
+### Run Unit Tests
+
+Unit tests are located in `tests/unit_tests/` and test individual components in isolation:
+
+```bash
+# Run all unit tests
+pytest tests/unit_tests/ -v
+
+# Run specific service unit tests
+pytest tests/unit_tests/power-service/ -v
+pytest tests/unit_tests/spi-service/ -v
+
+# Run specific test file
+pytest tests/unit_tests/power-service/test_106_soft_shutdown_denied.py -v -s
+
+# Run with markers
+pytest tests/unit_tests/ -m unit -v           # All unit tests
+pytest tests/unit_tests/ -m "unit and gpio" -v  # Unit tests with GPIO
+pytest tests/unit_tests/ -m shutdown -v       # Shutdown tests only
+```
+
 ### Remote Testing (Run from Laptop)
 
-Run tests from your laptop connecting to Pi over network (no SSH, no venv on Pi):
+Run integration tests from your laptop connecting to Pi over network (no SSH, no venv on Pi):
 
 ```bash
 # First time: Script auto-creates venv and installs dependencies
@@ -364,7 +467,141 @@ All services use newline-delimited JSON over TCP. Common request patterns:
 {"type": "get_data"}
 ```
 
-Responses include `"type"` field indicating response type. See `docs/COMPLETE_JSON_API_REFERENCE.md` for full API documentation.
+Responses include `"type"` field indicating response type. See `JSON_PROTOCOL_REFERENCE.md` for full API documentation.
+
+## Data Analysis
+
+### Test Results and Jupyter Notebooks
+
+Test results are saved in JSONL (JSON Lines) format for easy analysis:
+- Test data: `/tmp/test-results/data/test_*.jsonl`
+- Each line contains a JSON record (data samples, metadata, sync markers, timestamps)
+
+**Analyzing results:**
+```python
+import json
+
+# Read test data
+with open('/tmp/test-results/data/test_011_ecg_1hr_bpm60.jsonl', 'r') as f:
+    for line in f:
+        record = json.loads(line)
+        if record['type'] == 'data':
+            # Process ECG samples
+            samples = record['data']
+        elif record['type'] == 'metadata':
+            # Review test metrics
+            metrics = record
+```
+
+**Jupyter notebooks for analysis:**
+- Repository includes example notebooks (`ecg.ipynb`, `test_nov_25.ipynb`) demonstrating ECG and ICG data analysis
+- Use these as templates for custom analysis workflows
+- Common tasks: plotting signals, calculating metrics, detecting R-peaks, validating BPM
+
+### Common Analysis Patterns
+
+**ECG Analysis:**
+```python
+import numpy as np
+from scipy.signal import find_peaks
+
+# Calculate BPM from ECG data
+sampling_freq = 400  # Hz
+distance = int(sampling_freq * 0.5)  # Min 0.5s between peaks
+peaks, _ = find_peaks(ecg_signal, distance=distance)
+
+# Calculate BPM from peak intervals
+if len(peaks) >= 2:
+    peak_intervals = np.diff(peaks) / sampling_freq  # seconds
+    bpm = 60 / np.mean(peak_intervals)
+```
+
+**Sampling Frequency Validation:**
+```python
+# Extract sync markers and calculate actual sampling frequency
+sync_markers = [sample for sample in data if sample == [999, 999, 999]]
+duration_sec = len(sync_markers)  # Each sync marker is 1 second
+total_samples = len(data) - len(sync_markers)
+actual_freq = total_samples / duration_sec
+```
+
+## Troubleshooting
+
+### Connection Issues
+
+**Problem:** `ConnectionRefusedError` when running tests
+
+**Solutions:**
+```bash
+# Check if firmware services are running on CM4
+ssh pi@$PI_IP systemctl status spi-service
+
+# Restart services
+./scripts/run-tests-remote.sh $PI_IP --restart-services
+
+# Verify port is accessible
+nc -zv $PI_IP 1293
+
+# Check firewall (if needed)
+ssh pi@$PI_IP sudo iptables -L
+```
+
+### Sampling Frequency Issues
+
+**Problem:** Actual sampling frequency differs from expected
+
+**Cause:** Incorrect R-rate configuration or buffer accumulation
+
+**Solution:**
+- ADS1293 sampling rate formula: `fs = 128000 / (R1_rate × R2_rate × R3_rate)`
+- For 400 Hz: Closest achievable is 500 Hz with R2=4, R3=16
+- Always flush buffer after stabilization:
+  ```python
+  time.sleep(2.0)  # Wait for stabilization
+  flush_response = get_sensor_data(client)  # Discard accumulated samples
+  # Now start clean data collection
+  ```
+
+### First `get_data` Returns Extra Samples
+
+**Problem:** First response contains ~800 samples instead of expected ~400-500
+
+**Cause:** Firmware buffer accumulates samples during 2-second stabilization period
+
+**Solution:** Tests should explicitly flush the buffer before data collection (see pattern above)
+
+### Python Dependencies
+
+**Problem:** `ImportError` or missing modules
+
+**Solutions:**
+```bash
+# Ensure virtual environment is activated
+source venv/bin/activate  # Should see (venv) in prompt
+
+# Reinstall dependencies
+pip install -r tests/requirements.txt
+
+# Verify installation
+pytest --version
+python -c "import numpy, scipy, yaml; print('OK')"
+```
+
+### Build Failures
+
+**Problem:** CMake or compilation errors
+
+**Common causes and solutions:**
+- **Missing toolchain:** Ensure Docker is installed for cross-compilation
+- **Wrong build directory:** Always use `build-output` directory
+- **Stale build:** Clean and rebuild:
+  ```bash
+  rm -rf build-output
+  mkdir build-output
+  cd build-output
+  cmake .. -DCMAKE_TOOLCHAIN_FILE=../docker/arm-toolchain.cmake
+  cmake --build . -j$(nproc)
+  ```
 
 ## Version Management
 
