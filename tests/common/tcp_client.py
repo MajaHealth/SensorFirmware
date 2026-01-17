@@ -72,6 +72,39 @@ class TCPClient:
         response_str = response_data.decode('utf-8').strip()
         return json.loads(response_str)
 
+    def recv(self, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
+        """
+        Receive JSON message without sending.
+
+        Args:
+            timeout: Optional timeout in seconds (overrides socket timeout)
+
+        Returns:
+            JSON response dictionary, or None if timeout/no data
+        """
+        # Set temporary timeout if specified
+        old_timeout = self.socket.gettimeout()
+        if timeout is not None:
+            self.socket.settimeout(timeout)
+
+        try:
+            response_data = b''
+            while b'\n' not in response_data:
+                chunk = self.socket.recv(4096)
+                if not chunk:
+                    return None
+                response_data += chunk
+
+            # Parse JSON response
+            response_str = response_data.decode('utf-8').strip()
+            return json.loads(response_str)
+        except socket.timeout:
+            return None
+        finally:
+            # Restore original timeout
+            if timeout is not None:
+                self.socket.settimeout(old_timeout)
+
     def __enter__(self):
         """Context manager entry."""
         self.connect()

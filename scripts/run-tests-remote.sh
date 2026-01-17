@@ -44,6 +44,7 @@ log_step() {
 }
 
 # Check if Pi IP provided
+
 if [ -z "$PI_IP" ]; then
     log_error "Usage: $0 <PI_IP> [--restart-services] [pytest arguments]"
     echo ""

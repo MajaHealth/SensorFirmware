@@ -28,10 +28,8 @@ from tcp_client import TCPClient
 def ads1293_client(test_config):
     """Create TCP client for ADS1293 service."""
     ads_config = test_config['services']['ads1293']
-    client = TCPClient(ads_config['host'], ads_config['port'])
-    client.connect()
-    yield client
-    client.close()
+    with TCPClient(ads_config['host'], ads_config['port']) as client:
+        yield client
 
 
 @pytest.mark.fw_app
@@ -53,7 +51,7 @@ def test_repeat_poweroff_then_reenable(ads1293_client):
         "type": "poweroff"
     }
 
-    response = ads1293_client.send_json(poweroff_request)
+    response = ads1293_client.send(poweroff_request)
 
     print(f"Poweroff response: {response}")
 
@@ -73,7 +71,7 @@ def test_repeat_poweroff_then_reenable(ads1293_client):
         "R3_rate": 16
     }
 
-    response = ads1293_client.send_json(settings_request)
+    response = ads1293_client.send(settings_request)
 
     print(f"Settings response: {response}")
 
@@ -113,7 +111,7 @@ def test_multiple_poweroff_cycles(ads1293_client):
 
         # Poweroff
         poweroff_request = {"type": "poweroff"}
-        response = ads1293_client.send_json(poweroff_request)
+        response = ads1293_client.send(poweroff_request)
 
         assert response['type'] == 'power_is_off', \
             f"Cycle {i}: poweroff failed"
@@ -126,7 +124,7 @@ def test_multiple_poweroff_cycles(ads1293_client):
             "R2_rate": 4,
             "R3_rate": 16
         }
-        response = ads1293_client.send_json(settings_request)
+        response = ads1293_client.send(settings_request)
 
         assert response['type'] == 'actual_settings', \
             f"Cycle {i}: re-enable failed"
@@ -152,7 +150,7 @@ def test_poweroff_then_settings_disabled(ads1293_client):
 
     # Step 1: Poweroff
     poweroff_request = {"type": "poweroff"}
-    response = ads1293_client.send_json(poweroff_request)
+    response = ads1293_client.send(poweroff_request)
 
     assert response['type'] == 'power_is_off'
     print("✓ Poweroff successful")
@@ -164,7 +162,7 @@ def test_poweroff_then_settings_disabled(ads1293_client):
         "R2_rate": 4,
         "R3_rate": 16
     }
-    response = ads1293_client.send_json(settings_request)
+    response = ads1293_client.send(settings_request)
 
     print(f"Settings response: {response}")
 
