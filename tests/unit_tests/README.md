@@ -115,6 +115,21 @@ unit_tests/
   - Message protocol: "close" → "ACK:shutdown_complete"
   - Includes built-in MockApplication TCP server class
   - **Semi-automated** (requires manual switch press) + TCP/IP network
+- **Test #107:** Hard shutdown bypass (long press)
+  - Tests that long press (3+ seconds) bypasses application handshake
+  - Verifies NO "close" message sent to application
+  - Verifies NO ACK expected or received
+  - Confirms immediate power down (no graceful termination)
+  - Expected log entry: "[GPIO] Hard shutdown triggered - Step 1"
+  - Mock app monitors for messages (should receive NONE)
+  - **Semi-automated** (requires manual long press) + TCP/IP monitoring
+- **Test #108:** Shutdown initiated status message to app
+  - Tests that firmware sends "shutdown initiated" status after ACK
+  - Verifies mock app receives status message via TCP/IP
+  - Confirms firmware logs the transmission of status
+  - Validates complete message sequence: close -> ACK -> status
+  - Message protocol: "shutdown_initiated" sent after ACK received
+  - **Semi-automated** (requires manual switch press) + TCP/IP
 
 ### GPIO Tests
 - GPIO pin configuration and state management
@@ -171,6 +186,12 @@ pytest tests/unit_tests/fw_hw_in_loop/test_104_debounce_robustness.py -v -s
 
 # Run Test #105
 pytest tests/unit_tests/fw_hw_in_loop/test_105_soft_shutdown_handshake.py -v -s
+
+# Run Test #107
+pytest tests/unit_tests/fw_hw_in_loop/test_107_hard_shutdown_bypass.py -v -s
+
+# Run Test #108
+pytest tests/unit_tests/fw_hw_in_loop/test_108_shutdown_initiated_status.py -v -s
 
 # Run Test #41
 pytest tests/unit_tests/hw_component/test_041_usb_keyboard_mouse.py -v -s

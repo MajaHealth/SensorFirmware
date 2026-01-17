@@ -19,7 +19,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-PI_IP="${1:-${PI_IP}}"
+PI_IP="${1:-${PI_IP:-192.168.1.22}}"
 TEST_FILE="${2}"
 REMOTE_DIR="~/sensor_test_project"
 REMOTE_TEST_DIR="${REMOTE_DIR}/tests/unit_tests"

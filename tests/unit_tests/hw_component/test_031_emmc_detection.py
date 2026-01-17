@@ -10,8 +10,15 @@ This test runs on the CM4 itself (not on PC).
 
 import subprocess
 import os
+import sys
 import time
+import platform
 import pytest
+
+# Add common path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'common'))
+
+from platform_check import skip_if_not_raspberry_pi
 
 
 class TestEMMCDetection:
@@ -246,6 +253,9 @@ class TestEMMCDetection:
         - eMMC is readable
         - eMMC partitions are visible
         """
+
+        # Check if running on Raspberry Pi
+        skip_if_not_raspberry_pi("eMMC Detection test")
 
         print("\n" + "=" * 70)
         print("Test Case #31: eMMC Detection")
