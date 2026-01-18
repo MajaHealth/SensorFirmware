@@ -58,7 +58,7 @@ def test_get_data_no_configuration(ads1293_client):
     request = {"type": "get_data"}
     print(f"  Request: {request}")
 
-    response = ads1293_client.send_json(request)
+    response = ads1293_client.send(request)
     print(f"  Response: {response}\n")
 
     # Step 3: Document the response
@@ -124,7 +124,7 @@ def test_get_data_after_poweroff(ads1293_client):
         "type": "settings",
         "enable_conversion": True
     }
-    response = ads1293_client.send_json(settings_request)
+    response = ads1293_client.send(settings_request)
     print(f"  Response: {response}")
     assert response["type"] == "actual_settings"
     print(f"  ✓ Conversion enabled\n")
@@ -132,7 +132,7 @@ def test_get_data_after_poweroff(ads1293_client):
     # Step 2: Power off
     print(f"[Step 2] Sending poweroff command...")
     poweroff_request = {"type": "poweroff"}
-    response = ads1293_client.send_json(poweroff_request)
+    response = ads1293_client.send(poweroff_request)
     print(f"  Response: {response}")
     assert response["type"] == "power_is_off"
     print(f"  ✓ Sensor powered off\n")
@@ -140,7 +140,7 @@ def test_get_data_after_poweroff(ads1293_client):
     # Step 3: Try to get data after poweroff
     print(f"[Step 3] Sending get_data after poweroff...")
     get_data_request = {"type": "get_data"}
-    response = ads1293_client.send_json(get_data_request)
+    response = ads1293_client.send(get_data_request)
     print(f"  Response: {response}\n")
 
     # Step 4: Document the response
@@ -202,7 +202,7 @@ def test_get_data_conversion_disabled(ads1293_client):
         "type": "settings",
         "enable_conversion": False
     }
-    response = ads1293_client.send_json(settings_request)
+    response = ads1293_client.send(settings_request)
     print(f"  Response: {response}")
     assert response["type"] == "actual_settings"
     print(f"  ✓ Conversion disabled\n")
@@ -210,7 +210,7 @@ def test_get_data_conversion_disabled(ads1293_client):
     # Step 2: Try to get data
     print(f"[Step 2] Sending get_data with conversion disabled...")
     get_data_request = {"type": "get_data"}
-    response = ads1293_client.send_json(get_data_request)
+    response = ads1293_client.send(get_data_request)
     print(f"  Response: {response}\n")
 
     # Step 3: Document the response
@@ -273,7 +273,7 @@ def test_multiple_get_data_no_config(ads1293_client):
     for i in range(3):
         print(f"  Call {i+1}/3:")
         request = {"type": "get_data"}
-        response = ads1293_client.send_json(request)
+        response = ads1293_client.send(request)
         responses.append(response)
         print(f"    Response type: {response.get('type')}")
         if response.get('type') == 'data':

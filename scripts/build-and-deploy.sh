@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-PI_IP="${PI_IP:-192.168.29.39}"
+PI_IP="${PI_IP:-192.168.29.197}"
 PI_USER="${PI_USER:-pi}"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_TESTS="${RUN_TESTS:-0}"
@@ -52,8 +52,14 @@ docker build --target artifacts -t sensor-firmware-build -f docker/Dockerfile . 
 log_info "Extracting build artifacts..."
 # Build the 'build' stage to extract binaries (scratch images can't be extracted directly)
 docker build --target build -t sensor-firmware-build-stage -f docker/Dockerfile . > /dev/null 2>&1
+
+# Clean and recreate output directory to avoid tar conflicts
+# Use sudo because Docker may have created files with root ownership
+sudo rm -rf build-output/bin
 mkdir -p build-output/bin
-docker run --rm sensor-firmware-build-stage tar -C /work/build-output/bin -c . | tar -C build-output/bin -x
+
+# Extract with overwrite flag
+docker run --rm sensor-firmware-build-stage tar -C /work/build-output/bin -cf - . | tar -C build-output/bin -xf -
 
 log_info "✓ Build complete"
 

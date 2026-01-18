@@ -163,19 +163,24 @@ done
 
 if [ "$SERVICES_OK" = false ]; then
     echo ""
-    log_error "Some firmware services are not running on Pi!"
-    echo ""
-    echo "Options to fix:"
-    echo "  1. Run this script with --restart-services flag:"
-    echo "     $0 ${PI_IP} --restart-services"
-    echo ""
-    echo "  2. Or manually start services on Pi (${PI_USER}@${PI_IP}):"
-    echo "     ssh ${PI_USER}@${PI_IP}"
-    echo "     cd /opt/sensor-firmware/bin"
-    echo "     sudo ./spi-service > /tmp/spi-service.log 2>&1 &"
-    echo "     sudo ./power-service > /tmp/power-service.log 2>&1 &"
-    echo ""
-    exit 1
+    if [ "$RESTART_SERVICES" = true ]; then
+        log_warn "Some services failed to start. Continuing anyway..."
+        log_warn "Tests that require unavailable services will fail."
+    else
+        log_error "Some firmware services are not running on Pi!"
+        echo ""
+        echo "Options to fix:"
+        echo "  1. Run this script with --restart-services flag:"
+        echo "     $0 ${PI_IP} --restart-services"
+        echo ""
+        echo "  2. Or manually start services on Pi (${PI_USER}@${PI_IP}):"
+        echo "     ssh ${PI_USER}@${PI_IP}"
+        echo "     cd /opt/sensor-firmware/bin"
+        echo "     sudo ./spi-service > /tmp/spi-service.log 2>&1 &"
+        echo "     sudo ./power-service > /tmp/power-service.log 2>&1 &"
+        echo ""
+        exit 1
+    fi
 fi
 
 log_info "✓ All required services are accessible"
