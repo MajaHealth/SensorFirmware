@@ -119,6 +119,17 @@ int main()
         ADS1293_process_obj.process();
         WS2812_process_obj.process();
 
+        // Periodic lead-off status push (every ~5 seconds)
+        std::string leadoff_json = ADS1293_process_obj.check_and_get_periodic_leadoff_status();
+        if (leadoff_json.size() > 2)
+        {
+            if (ADS1293_response_ready_flag.load(std::memory_order_acquire) == false)
+            {
+                ADS1293_response_json = leadoff_json;
+                ADS1293_response_ready_flag.store(true, std::memory_order_release);
+            }
+        }
+
         std::string response_json=MAX30009_process_obj.calibration_process();
         if (response_json.size()>2)
         {
