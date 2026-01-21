@@ -58,6 +58,35 @@ thresholds:
     frequency_error_hz: 1
     sync_counter_tolerance_ms: 50
 
+# Battery test parameters
+battery:
+  # Discharge test settings
+  target_soc_percent: 10.0          # Stop test when SOC reaches this
+  max_test_duration_sec: 600        # 10 minutes for quick test
+  logging_interval_sec: 5           # Log every 5 seconds
+  # Long test settings
+  long_target_soc_percent: 5.0
+  long_max_duration_sec: 14400      # 4 hours
+  long_logging_interval_sec: 60     # Log every minute
+
+# Battery thresholds
+battery_thresholds:
+  # Temperature limits (Celsius)
+  temp_min_operating: 0.0
+  temp_max_operating: 45.0
+  temp_min_safe: -10.0
+  temp_max_safe: 60.0
+  # Voltage limits (Volts)
+  voltage_full: 4.2
+  voltage_nominal: 3.7
+  voltage_low: 3.4
+  voltage_critical: 3.2
+  voltage_empty: 3.0
+  # SOC thresholds (percent)
+  soc_low: 20.0
+  soc_critical: 10.0
+  soc_empty: 5.0
+
 # Output paths (on CM4)
 output:
   results_dir: "/tmp/test-results"
