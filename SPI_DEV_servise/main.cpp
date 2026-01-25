@@ -8,11 +8,11 @@
 
 #include "MAX30009_process.h"
 #include "ADS1293_process.h"
-#include "WS2812_process.h"
+// #include "WS2812_process.h"  // Disabled - library not installed
 
 MAX30009_process MAX30009_process_obj;
 ADS1293_process ADS1293_process_obj;
-WS2812_process WS2812_process_obj;
+// WS2812_process WS2812_process_obj;  // Disabled
 
 #include <iostream>
 #include <vector>
@@ -39,12 +39,13 @@ std::atomic<bool> MAX30009_response_ready_flag(false);
 const int MAX30009_port=30009;
 JSON_TCP_sever MAX30009_TCP_server(MAX30009_port,&MAX30009_request_json,&MAX30009_request_ready_flag,&MAX30009_response_json,&MAX30009_response_ready_flag);
 
-std::string WS2812_request_json;
-std::atomic<bool> WS2812_request_ready_flag(false);
-std::string WS2812_response_json;
-std::atomic<bool> WS2812_response_ready_flag(false);
-const int WS2812_port=2812;
-JSON_TCP_sever WS2812_TCP_server(WS2812_port,&WS2812_request_json,&WS2812_request_ready_flag,&WS2812_response_json,&WS2812_response_ready_flag);
+// WS2812 TCP server - Disabled
+// std::string WS2812_request_json;
+// std::atomic<bool> WS2812_request_ready_flag(false);
+// std::string WS2812_response_json;
+// std::atomic<bool> WS2812_response_ready_flag(false);
+// const int WS2812_port=2812;
+// JSON_TCP_sever WS2812_TCP_server(WS2812_port,&WS2812_request_json,&WS2812_request_ready_flag,&WS2812_response_json,&WS2812_response_ready_flag);
 
 
 void delay(int ms)
@@ -58,7 +59,7 @@ int main()
     ADS1293_process_obj.init();
     ADS1293_TCP_server.Start();
     MAX30009_TCP_server.Start();
-    WS2812_TCP_server.Start();
+    // WS2812_TCP_server.Start();  // Disabled
 
 
 
@@ -91,6 +92,8 @@ int main()
             }
         }
 
+        // WS2812 request processing - Disabled
+        /*
         if (WS2812_request_ready_flag.load(std::memory_order_acquire)==true)
         {
             std::string response_json;
@@ -102,6 +105,7 @@ int main()
                 WS2812_response_ready_flag.store(true, std::memory_order_release);
             }
         }
+        */
 
         auto current_time = std::chrono::steady_clock::now();
         auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_call_time);
@@ -117,7 +121,7 @@ int main()
 
         MAX30009_process_obj.process();
         ADS1293_process_obj.process();
-        WS2812_process_obj.process();
+        // WS2812_process_obj.process();  // Disabled
 
         std::string response_json=MAX30009_process_obj.calibration_process();
         if (response_json.size()>2)
