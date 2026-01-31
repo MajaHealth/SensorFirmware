@@ -471,6 +471,78 @@ public:
     bool set_LEAD_RBIAS_BIN_state(bool RBIAS_BIN_enable);
 
 
+    //LEAD-OFF DETECTION____________________________________________________________________________________
+
+    /**
+        \brief Enable/disable DRV out-of-range detection (for DRVP/DRVN electrodes in tetrapolar mode)
+        \param [in] enable - true to enable DRV OOR detection
+        \return - true if set successful
+    */
+    bool set_DRV_OOR_detection_enable(bool enable);
+
+    /**
+        \brief Enable/disable DC lead-off detection (for BIP/BIN - requires no external caps or EN_EXT_LOFF)
+        \param [in] enable - true to enable DC lead-off detection
+        \return - true if set successful
+    */
+    bool set_DC_leadoff_detection_enable(bool enable);
+
+    /**
+        \brief Enable/disable external lead-off input (routes DC lead-off through EL2B/EL3B instead of BIP/BIN)
+        \param [in] enable - true to enable external lead-off routing
+        \return - true if set successful
+    */
+    bool set_external_leadoff_enable(bool enable);
+
+    /**
+        \brief Set DC lead-off detection current magnitude
+        \param [in] imag - current magnitude (0-7): 0=5nA, 1=10nA, 2=20nA, 3=30nA, 4=40nA, 5=50nA, 6=75nA, 7=100nA
+        \return - true if set successful
+    */
+    bool set_DC_leadoff_current_magnitude(uint8_t imag);
+
+    /**
+        \brief Set DC lead-off current polarity
+        \param [in] positive - true for source on BIP/sink on BIN, false for sink on BIP/source on BIN
+        \return - true if set successful
+    */
+    bool set_DC_leadoff_current_polarity(bool positive);
+
+    /**
+        \brief Set DC lead-off detection threshold
+        \param [in] threshold - threshold level (0-15)
+        \return - true if set successful
+    */
+    bool set_DC_leadoff_threshold(uint8_t threshold);
+
+    /**
+        \brief Enable/disable BioZ threshold detection (AC lead-off via ADC output monitoring)
+        \param [in] enable - true to enable BioZ threshold detection
+        \return - true if set successful
+    */
+    bool set_BIOZ_threshold_detection_enable(bool enable);
+
+    /**
+        \brief Set BioZ comparison mode for threshold detection
+        \param [in] mode - comparison mode (0=I channel, 1=Q channel, 2=magnitude √(I²+Q²), 3=reserved)
+        \return - true if set successful
+    */
+    bool set_BIOZ_comparison_mode(uint8_t mode);
+
+    /**
+        \brief Set BioZ low threshold for AC lead-off detection
+        \param [in] threshold - low threshold value (0-255)
+        \return - true if set successful
+    */
+    bool set_BIOZ_low_threshold(uint8_t threshold);
+
+    /**
+        \brief Set BioZ high threshold for AC lead-off detection
+        \param [in] threshold - high threshold value (0-255)
+        \return - true if set successful
+    */
+    bool set_BIOZ_high_threshold(uint8_t threshold);
+
 
     // CALIBRATE________________________________________________________________________________________________
     /**
@@ -1932,6 +2004,109 @@ inline bool MAX30009_LIB::set_LEAD_RBIAS_BIN_state(bool RBIAS_BIN_enable)
     _write_reg.LEAD_BIAS_CONFIGURATION.EN_RBIAS_BIN=(uint8_t)RBIAS_BIN_enable;
 
     bool write_reg_result=write_register(MAX30009_ADDRESS_LEAD_BIAS_CONFIGURATION);
+
+    return write_reg_result;
+}
+
+//LEAD-OFF DETECTION IMPLEMENTATIONS____________________________________________________________________________________
+
+inline bool MAX30009_LIB::set_DRV_OOR_detection_enable(bool enable)
+{
+    _write_reg.DC_LEADS_CONFIGURATION.EN_DRV_OOR = (uint8_t)enable;
+
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_DC_leadoff_detection_enable(bool enable)
+{
+    _write_reg.DC_LEADS_CONFIGURATION.EN_LOFF_DET = (uint8_t)enable;
+
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_external_leadoff_enable(bool enable)
+{
+    _write_reg.DC_LEADS_CONFIGURATION.EN_EXT_LOFF = (uint8_t)enable;
+
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_DC_leadoff_current_magnitude(uint8_t imag)
+{
+    if (imag > 7) {
+        imag = 7;  // Clamp to max value
+    }
+    _write_reg.DC_LEADS_CONFIGURATION.LOFF_IMAG = imag;
+
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_DC_leadoff_current_polarity(bool positive)
+{
+    // LOFF_IPOL: 0 = source on BIP, sink on BIN (positive)
+    //            1 = sink on BIP, source on BIN (negative)
+    _write_reg.DC_LEADS_CONFIGURATION.LOFF_IPOL = (uint8_t)(!positive);
+
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_DC_leadoff_threshold(uint8_t threshold)
+{
+    if (threshold > 15) {
+        threshold = 15;  // Clamp to max value (4-bit)
+    }
+    _write_reg.DC_LEAD_DETECT_THRESHOLD.LOFF_THRESH = threshold;
+
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEAD_DETECT_THRESHOLD);
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_BIOZ_threshold_detection_enable(bool enable)
+{
+    _write_reg.BIOZ_CONFIGURATION_2.EN_BIOZ_THRESH = (uint8_t)enable;
+
+    bool write_reg_result = write_register(MAX30009_ADDRESS_BIOZ_CONFIGURATION_2);
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_BIOZ_comparison_mode(uint8_t mode)
+{
+    if (mode > 3) {
+        return false;  // Invalid mode
+    }
+    _write_reg.BIOZ_CONFIGURATION_2.BIOZ_CMP = mode;
+
+    bool write_reg_result = write_register(MAX30009_ADDRESS_BIOZ_CONFIGURATION_2);
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_BIOZ_low_threshold(uint8_t threshold)
+{
+    _write_reg.BIOZ_LOW_THRESHOLD.BIOZ_LO_THRESH = threshold;
+
+    bool write_reg_result = write_register(MAX30009_ADDRESS_BIOZ_LOW_THRESHOLD);
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_BIOZ_high_threshold(uint8_t threshold)
+{
+    _write_reg.BIOZ_HIGH_THRESHOLD.BIOZ_HI_THRESH = threshold;
+
+    bool write_reg_result = write_register(MAX30009_ADDRESS_BIOZ_HIGH_THRESHOLD);
 
     return write_reg_result;
 }

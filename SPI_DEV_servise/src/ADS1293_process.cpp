@@ -35,6 +35,7 @@ ADS1293_process::ADS1293_process()
     ADS1293_user_sett.leadoff_enable_inputs[5] = true;   // IN6 (CH3-)
 
     // AC mode settings (used only if leadoff_mode_dc = false)
+    ADS1293_user_sett.leadoff_ac_analog_mode = true;     // Default to Analog AC for dry electrodes
     ADS1293_user_sett.leadoff_ac_comparator_level = 1;   // Level 1 (~21mV @ 2kHz)
     ADS1293_user_sett.leadoff_ac_divider_ratio = 2;      // 4.17 kHz (50kHz/(4*1*(2+1)))
     ADS1293_user_sett.leadoff_ac_divider_k16 = false;    // K=1
@@ -170,6 +171,23 @@ std::string ADS1293_process::process_JSON_line(const char * JSON_line)
                         ADS1293_user_sett.leadoff_enable_inputs[i] = inputs_array[i];
                     }
                 }
+                // AC mode specific settings
+                if (parsed_json.contains("leadoff_ac_analog"))
+                {
+                    ADS1293_user_sett.leadoff_ac_analog_mode = parsed_json["leadoff_ac_analog"];
+                }
+                if (parsed_json.contains("leadoff_ac_level"))
+                {
+                    ADS1293_user_sett.leadoff_ac_comparator_level = parsed_json["leadoff_ac_level"];
+                }
+                if (parsed_json.contains("leadoff_ac_freq_ratio"))
+                {
+                    ADS1293_user_sett.leadoff_ac_divider_ratio = parsed_json["leadoff_ac_freq_ratio"];
+                }
+                if (parsed_json.contains("leadoff_ac_freq_k16"))
+                {
+                    ADS1293_user_sett.leadoff_ac_divider_k16 = parsed_json["leadoff_ac_freq_k16"];
+                }
 
                 process_all_settings_for_ADS1293();
                 return get_all_settings_as_json();
@@ -211,7 +229,7 @@ std::string ADS1293_process::get_all_settings_as_json(void)
     response_json["R2_rate"] =ADS1293_user_sett.R2_rate;
     response_json["R3_rate"] =ADS1293_user_sett.R3_rate;
 
-    // NEW: Add lead-off detection settings
+    // Lead-off detection settings
     response_json["enable_leadoff"] = ADS1293_user_sett.enable_leadoff_detection;
     response_json["leadoff_mode"] = ADS1293_user_sett.leadoff_mode_dc ? "dc" : "ac";
     response_json["leadoff_current_nA"] = ADS1293_user_sett.leadoff_current_nA;
@@ -221,6 +239,12 @@ std::string ADS1293_process::get_all_settings_as_json(void)
         inputs_array.push_back(ADS1293_user_sett.leadoff_enable_inputs[i]);
     }
     response_json["leadoff_inputs"] = inputs_array;
+
+    // AC mode specific settings
+    response_json["leadoff_ac_analog"] = ADS1293_user_sett.leadoff_ac_analog_mode;
+    response_json["leadoff_ac_level"] = ADS1293_user_sett.leadoff_ac_comparator_level;
+    response_json["leadoff_ac_freq_ratio"] = ADS1293_user_sett.leadoff_ac_divider_ratio;
+    response_json["leadoff_ac_freq_k16"] = ADS1293_user_sett.leadoff_ac_divider_k16;
 
     return response_json.dump();
 }
@@ -408,7 +432,45 @@ void ADS1293_process::configure_leadoff_detection()
     else {
         std::cout << "LOD: Mode = AC" << std::endl;
         ADS1293_obj.set_leadoff_detect_mode(ADS1293::SELAC_LOD_AC);
-        ADS1293_obj.set_AC_leadoff_mode(ADS1293::ACAD_LOD_DIGITAL);  // Digital mode
+
+        // Select Analog or Digital AC mode
+        // Analog AC is required for capacitively coupled / dry electrodes
+        if (ADS1293_user_sett.leadoff_ac_analog_mode) {
+            std::cout << "LOD: AC Sub-mode = ANALOG (for dry/capacitive electrodes)" << std::endl;
+            ADS1293_obj.set_AC_leadoff_mode(ADS1293::ACAD_LOD_ANALOG);
+
+            // Analog AC mode: current sets AC excitation amplitude (per datasheet)
+            uint32_t current_nA = ADS1293_user_sett.leadoff_current_nA;
+            current_nA = (current_nA / 8) * 8;  // Round down to nearest 8nA
+            if (current_nA < 8) current_nA = 8;
+            if (current_nA > 2040) current_nA = 2040;
+            ADS1293_user_sett.leadoff_current_nA = current_nA;
+            ADS1293_obj.set_leadoff_detection_current(current_nA);
+            std::cout << "LOD: AC Current Amplitude = " << current_nA << " nA" << std::endl;
+        } else {
+            std::cout << "LOD: AC Sub-mode = DIGITAL" << std::endl;
+            ADS1293_obj.set_AC_leadoff_mode(ADS1293::ACAD_LOD_DIGITAL);
+
+            // Digital AC mode ALSO needs current for AC excitation (same as Analog AC)
+            // The AC current creates a voltage across electrode impedance - without it,
+            // there's no signal to detect and electrodes always appear "connected"
+            uint32_t current_nA = ADS1293_user_sett.leadoff_current_nA;
+            current_nA = (current_nA / 8) * 8;  // Round to 8nA steps
+            if (current_nA < 8) current_nA = 8;
+            if (current_nA > 2040) current_nA = 2040;
+            ADS1293_user_sett.leadoff_current_nA = current_nA;
+            ADS1293_obj.set_leadoff_detection_current(current_nA);
+            std::cout << "LOD: Digital AC Current = " << current_nA << " nA" << std::endl;
+
+            // For Digital AC, recommend low frequency (within digital filter passband)
+            // With R2=8, R3=128, ODR=50Hz, Nyquist=25Hz
+            // Frequencies above 25Hz will be filtered out and not detected
+            if (ADS1293_user_sett.leadoff_ac_divider_ratio < 100 &&
+                !ADS1293_user_sett.leadoff_ac_divider_k16) {
+                std::cout << "LOD: WARNING - Digital AC frequency may be too high for filter passband!" << std::endl;
+                std::cout << "LOD: Recommend using ratio>=100 with k16=true (frequency <= 6 Hz)" << std::endl;
+            }
+        }
 
         // Set AC comparator trigger level
         ADS1293::COMPARATOR_TRIGGER_LEVEL_TDE level;
@@ -430,14 +492,11 @@ void ADS1293_process::configure_leadoff_detection()
                                             ADS1293::ACDIV_FACTOR_K16 : ADS1293::ACDIV_FACTOR_K1;
         ADS1293_obj.set_leadoff_frequency_divider(ratio, factor);
 
-        // Calculate and display frequency
+        // Calculate and display frequency: F = 50/(4*K*(ratio+1)) kHz
         uint32_t K = ADS1293_user_sett.leadoff_ac_divider_k16 ? 16 : 1;
         uint32_t freq_hz = 50000 / (4 * K * (ratio + 1));
         std::cout << "LOD: AC Frequency = " << freq_hz << " Hz (ratio=" << (int)ratio
                   << ", K=" << K << ")" << std::endl;
-
-        // For AC mode, current register should be 0
-        ADS1293_obj.set_leadoff_detection_current(0);
     }
 
     // Enable/disable individual inputs
@@ -545,6 +604,16 @@ std::string ADS1293_process::get_leadoff_status_as_json()
     response["enabled"] = ADS1293_user_sett.enable_leadoff_detection;
     response["mode"] = ADS1293_user_sett.leadoff_mode_dc ? "dc" : "ac";
     response["current_nA"] = ADS1293_user_sett.leadoff_current_nA;
+
+    // AC mode specific info
+    if (!ADS1293_user_sett.leadoff_mode_dc) {
+        response["ac_analog_mode"] = ADS1293_user_sett.leadoff_ac_analog_mode;
+        response["ac_level"] = ADS1293_user_sett.leadoff_ac_comparator_level;
+        // Calculate AC frequency: F = 50/(4*K*(ratio+1)) kHz
+        uint32_t K = ADS1293_user_sett.leadoff_ac_divider_k16 ? 16 : 1;
+        uint32_t freq_hz = 50000 / (4 * K * (ADS1293_user_sett.leadoff_ac_divider_ratio + 1));
+        response["ac_frequency_hz"] = freq_hz;
+    }
 
     // Individual input status
     nlohmann::json status_obj;

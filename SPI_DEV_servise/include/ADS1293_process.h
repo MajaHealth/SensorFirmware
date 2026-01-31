@@ -15,11 +15,12 @@ typedef struct ADS1293_USER_SETTINGS
     int32_t R2_rate;
     int32_t R3_rate;
 
-    // Lead-off detection configuration (Phase 1)
+    // Lead-off detection configuration
     bool enable_leadoff_detection;      // Master enable/disable
     bool leadoff_mode_dc;               // true=DC, false=AC
     uint32_t leadoff_current_nA;        // 8-2040 nA (multiples of 8)
     bool leadoff_enable_inputs[6];      // Per-input enable flags
+    bool leadoff_ac_analog_mode;         // true=Analog AC, false=Digital AC (for dry electrodes use Analog)
     uint8_t leadoff_ac_comparator_level; // 0-3 for AC mode threshold
     uint8_t leadoff_ac_divider_ratio;    // 0-127 for AC frequency
     bool leadoff_ac_divider_k16;         // false=K1, true=K16

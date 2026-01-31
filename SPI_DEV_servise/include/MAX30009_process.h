@@ -18,6 +18,12 @@
 #include <fstream>
 #include <filesystem>
 
+// Simple drive electrode lead status (software threshold-based)
+typedef enum {
+    DRIVE_LEAD_ON,           // Impedance < threshold (leads connected)
+    DRIVE_LEAD_OFF           // Impedance > threshold (leads disconnected)
+} DRIVE_LEAD_STATUS_ENUM;
+
 typedef struct MAX30009_USER_SETTINGS
 {
     uint32_t stimulate_frequency;
@@ -36,6 +42,16 @@ typedef struct MAX30009_USER_SETTINGS
 
     uint32_t ext_MUX_state;
 
+    // Lead-off detection configuration
+    bool enable_leadoff_detection;          // Master enable for lead-off detection
+    bool enable_drv_oor_detection;          // DRV out-of-range (DRVP/DRVN in tetrapolar mode)
+    bool enable_bioz_threshold_detection;   // AC lead-off via ADC thresholds (BIP/BIN)
+    uint8_t bioz_lo_threshold;              // BioZ low threshold (0-255, default ~10)
+    uint8_t bioz_hi_threshold;              // BioZ high threshold (0-255, default ~245)
+
+    // Drive electrode lead-off detection (simple software threshold)
+    bool enable_drive_leadoff;              // Enable drive electrode detection
+    double leadoff_threshold_ohms;          // Impedance threshold in Ω (default 500Ω)
 
 } MAX30009_USER_SETTINGS_TDE;
 
@@ -72,6 +88,16 @@ public:
     MAX30009_CALIB_DATA  get_calib_koef_from_file(const std::string& filename);
 
     std::string get_timestamp_string();
+
+    // Lead-off detection
+    void configure_leadoff_detection();
+    void read_leadoff_status();
+    std::string get_leadoff_status_as_json();
+
+    // Drive electrode lead-off detection (simple software threshold)
+    void check_drive_leadoff();
+    std::string get_drive_leadoff_status_as_json();
+
 protected:
 
 private:
@@ -112,10 +138,33 @@ private:
     uint32_t _calibrate_current_index=0;
     uint32_t _calibrate_freq_index=0;
 
+    // Calibration result for lead-off detection threshold calculation
+    double _counts_per_ohm = 0.0;  // Measured during calibration with 100Ω resistor
+
     bool _old_power_state=false;
 
+    // Lead-off detection status tracking
+    bool _leadoff_drv_oor = false;                      // DRV out-of-range status (DRVP/DRVN)
+    bool _leadoff_bioz_over = false;                    // BioZ over threshold (BIP/BIN)
+    bool _leadoff_bioz_under = false;                   // BioZ under threshold (BIP/BIN)
+    bool _leadoff_bip_high = false;                     // DC BIP high limit (if DC enabled)
+    bool _leadoff_bip_low = false;                      // DC BIP low limit
+    bool _leadoff_bin_high = false;                     // DC BIN high limit
+    bool _leadoff_bin_low = false;                      // DC BIN low limit
 
+    uint32_t _leadoff_check_counter = 0;
+    uint8_t _leadoff_debounce_drv_oor = 0;
+    uint8_t _leadoff_debounce_bioz_over = 0;
+    uint8_t _leadoff_debounce_bioz_under = 0;
 
+    static constexpr uint32_t LEADOFF_CHECK_INTERVAL = 2000;  // Check every 1s (2000 x 500µs)
+    static constexpr uint8_t LEADOFF_DEBOUNCE_COUNT = 3;      // Require 3 consecutive reads
+
+    // Drive electrode lead-off detection (software threshold-based)
+    DRIVE_LEAD_STATUS_ENUM _drive_lead_status = DRIVE_LEAD_ON;
+    DRIVE_LEAD_STATUS_ENUM _drive_lead_status_prev = DRIVE_LEAD_ON;
+    uint8_t _drive_leadoff_debounce_count = 0;
+    uint32_t _drive_leadoff_counter = 0;
 
 };
 

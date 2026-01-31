@@ -26,9 +26,48 @@ The project uses CodeBlocks with separate project files for each service:
 - `-Wall` - All warnings enabled
 - `-fexceptions` - C++ exception handling
 
+### Command-Line Build (without WS2812 LED support)
+
+```bash
+cd SPI_DEV_servise
+./compile.sh
+```
+
+Or manually:
+```bash
+g++ -Wall -fexceptions -g \
+  -Iinclude -IADS1293_LIB -IMAX30009_LIB -IVTK -Ihard_driver \
+  main.cpp src/ADS1293_process.cpp src/MAX30009_process.cpp \
+  ADS1293_LIB/*.cpp MAX30009_LIB/*.cpp include/JSON_TCP_sever.cpp \
+  -o SPI_DEV_servise -lgpiod -lpthread
+```
+
+Run with: `sudo ./SPI_DEV_servise`
+
 ### Build Outputs
 - `SPI_DEV_servise/bin/Debug/SPI_DEV_servise` (or `Release/`)
 - `power_control_servise/bin/Release/power_control_servise`
+
+## Testing via TCP
+
+Use netcat or similar to send JSON commands to the running services:
+
+```bash
+# Test ADS1293 (ECG) - Port 1293
+echo '{"type": "settings", "power_enable": true, "enable_conversion": true}' | nc localhost 1293
+
+# Query lead-off status
+echo '{"type": "get_leadoff_status"}' | nc localhost 1293
+
+# Get sensor data
+echo '{"type": "get_data"}' | nc localhost 1293
+
+# Test MAX30009 (Bioimpedance) - Port 30009
+echo '{"type": "get_data"}' | nc localhost 30009
+
+# Test Power Control - Port 501
+echo '{"type": "get_status"}' | nc localhost 501
+```
 
 ## System Architecture
 
@@ -188,19 +227,19 @@ The MAX30009 bioimpedance sensor requires calibration coefficients:
 ## Hardware Drivers
 
 ### GPIO Control
-**Location:** `hard_driver/GPIO_driver.h`
+**Location:** `SPI_DEV_servise/hard_driver/GPIO_driver.h`
 
 Uses `libgpiod` for modern GPIO control (replaces deprecated sysfs GPIO).
 
 ### SPI Communication
-**Location:** `hard_driver/SPI_hard_driver.h`
+**Location:** `SPI_DEV_servise/hard_driver/SPI_hard_driver.h`
 
-Manages SPI bus for sensor communication (ADS1293, MAX30009).
+Manages SPI bus for sensor communication (ADS1293, MAX30009). Uses `/dev/spidev0.0` (MAX30009) and `/dev/spidev0.1` (ADS1293).
 
 ### I2C/SMBus
 **Location:** `power_control_servise/hard_driver/VT_SMBUS_driver.h`
 
-Battery monitoring chip communication.
+Battery monitoring chip communication via I2C.
 
 ### WS2812 LED Driver
 **Location:** `SPI_DEV_servise/WS281x/` (C code)
@@ -240,6 +279,55 @@ Low-level DMA/PWM driver for RGB LED strip control on Raspberry Pi.
 - Filter settings: LP, HP, input HP
 - External MUX support for multi-channel EIT
 
+**Drive Electrode Lead-Off Detection (I+/I-):**
+
+AC-coupled tetrapolar configuration prevents DC lead-off detection. Uses hybrid approach:
+
+**Hardware flags (register 0x01 STATUS_2):**
+- `DRV_OOR` (bit 4): Detects I+ (DRVP) disconnection - DRVN voltage outside 0.27V to (AVDD-0.35V)
+- `BIOZ_OVER` (bit 6): Detects drive electrode disconnection - magnitude exceeds BIOZ_HI_THRESH
+- `BIOZ_UNDR` (bit 5): Detects both V+ and V- disconnection - magnitude below BIOZ_LO_THRESH
+
+**Software variance detection (backup/primary for AC-coupled):**
+- High variance (>10000): I+ (DRVP) off - signal becomes noisy
+- Low variance (<3000): I- (DRVN) off - signal flatlines/saturates
+- Configurable via JSON: `drvp_variance_threshold`, `drvn_variance_threshold`
+
+**Calibration-based thresholds:**
+Must run calibration first with 100Ω onboard resistor to calculate `counts_per_ohm`:
+```bash
+echo '{"type":"start_calibrate"}' | nc localhost 30009
+```
+System uses 1.28mA @ 20kHz calibration point to calculate:
+- `BIOZ_HI_THRESH = min((500Ω × counts_per_ohm) / 2048, 255)` for >500Ω detection
+- `BIOZ_LO_THRESH = max((5Ω × counts_per_ohm) / 32, 1)` for <5Ω detection
+
+**Testing sequence:**
+```bash
+# 1. Start service
+sudo ./SPI_DEV_servise
+
+# 2. Run calibration (takes several minutes)
+echo '{"type":"start_calibrate"}' | nc localhost 30009
+
+# 3. Enable measurement with lead-off detection in 4-wire mode
+echo '{"type": "settings", "ext_MUX_state": 1, "power_enable": true, "measure_enable": true, "enable_drive_leadoff": true}' | nc localhost 30009
+
+# 4. Query status
+echo '{"type": "get_drive_leadoff_status"}' | nc localhost 30009
+```
+
+**Detection output:**
+```
+LOD DEBUG: DRV_OOR=X BIOZ_OVER=X BIOZ_UNDR=X | DRVP_OFF=X DRVN_OFF=X variance=XXXX
+```
+
+**Implementation details:**
+- `configure_drive_leadoff_detection()`: Calculates thresholds, enables hardware flags
+- `read_drive_leadoff_status()`: Combines hardware + variance detection with 3-sample debouncing
+- `update_signal_variance()`: Calculates rolling variance over 32-sample window
+- Only active in MUX state 1 (4-wire mode)
+
 ### ADS1293 (ECG/EEG)
 **Location:** `SPI_DEV_servise/ADS1293_LIB/`
 
@@ -247,6 +335,27 @@ Low-level DMA/PWM driver for RGB LED strip control on Raspberry Pi.
 - R2/R3 decimation rate control
 - Power management (conversion enable/disable)
 - Lead bias enable for electrode impedance reduction
+
+**Lead-Off Detection:**
+- DC or AC detection modes
+- Configurable detection current (8-2040 nA in 8nA steps)
+- Per-input monitoring: IN1, IN2, IN3, IN5, IN6 (IN4/RLD must never be monitored)
+- Debounced status with 3 consecutive reads required
+- Status polled every ~500ms
+
+**Channel-to-Input mapping:**
+```
+CH1: IN2(+) - IN1(-)
+CH2: IN3(+) - IN1(-)
+CH3: IN5(+) - IN6(-)
+RLD: IN4 (Right Leg Drive - do not monitor for lead-off)
+```
+
+**JSON commands for lead-off:**
+```json
+{"type": "settings", "enable_leadoff": true, "leadoff_mode": "dc", "leadoff_current_nA": 40}
+{"type": "get_leadoff_status"}
+```
 
 ### WS2812 (RGB LED)
 **Location:** `SPI_DEV_servise/WS281x/`

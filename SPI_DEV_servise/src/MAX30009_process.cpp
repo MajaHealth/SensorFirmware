@@ -1,5 +1,6 @@
 #include "MAX30009_process.h"
 #include <iomanip>
+#include <cmath>
 #include <ctime>
 
 using json = nlohmann::json;
@@ -37,6 +38,14 @@ void MAX30009_process::init()
             _calibrate_data[i][j]=get_calib_koef_from_file(filename);
         }
     }
+
+    // Set default lead-off threshold values
+    MAX30009_user_sett.bioz_lo_threshold = 10;   // Near negative rail
+    MAX30009_user_sett.bioz_hi_threshold = 245;  // Near positive rail
+
+    // Drive electrode lead-off detection defaults (simple software threshold)
+    MAX30009_user_sett.enable_drive_leadoff = false;  // Disabled by default
+    MAX30009_user_sett.leadoff_threshold_ohms = 500.0;  // 500Ω threshold
 }
 
 MAX30009_CALIB_DATA  MAX30009_process::get_calib_koef_from_file(const std::string& filename)
@@ -94,7 +103,27 @@ MAX30009_CALIB_DATA  MAX30009_process::get_calib_koef_from_file(const std::strin
 
 void MAX30009_process::process()
 {
+    // Periodic lead-off status check (skip during calibration - MUX connected to internal resistor)
+    if (MAX30009_user_sett.enable_leadoff_detection &&
+        MAX30009_user_sett.power_enable &&
+        !_need_calibrate) {
+        _leadoff_check_counter++;
+        if (_leadoff_check_counter >= LEADOFF_CHECK_INTERVAL) {
+            _leadoff_check_counter = 0;
+            read_leadoff_status();
+        }
+    }
 
+    // Drive electrode lead-off detection (software threshold check every 1s)
+    if (MAX30009_user_sett.enable_drive_leadoff &&
+        MAX30009_user_sett.measure_enable &&
+        !_need_calibrate) {
+        _drive_leadoff_counter++;
+        if (_drive_leadoff_counter >= LEADOFF_CHECK_INTERVAL) {
+            _drive_leadoff_counter = 0;
+            check_drive_leadoff();
+        }
+    }
 
     if (_need_calibrate==true)
     {
@@ -296,6 +325,23 @@ std::string MAX30009_process::calibration_process(void)
             {
                 //calibrate is finish
                 _need_calibrate=false;
+
+                // Calculate counts_per_ohm for lead-off threshold calculation
+                // Use 1.28mA @ 20kHz calibration point (matches typical operating conditions)
+                // CURRENT_POINTS[4] = 1.28mA, FREQ_POINTS[7] = 20kHz
+                MAX30009_CALIB_DATA& ref_calib = _calibrate_data[4][7];
+                double magnitude = sqrt(pow(ref_calib.I_cal_in_ADC, 2) + pow(ref_calib.Q_cal_in_ADC, 2));
+                _counts_per_ohm = magnitude / CALIB_RESISTOR_VALUE;
+
+                std::cout << std::endl;
+                std::cout << "========================================" << std::endl;
+                std::cout << "CALIBRATION COMPLETE" << std::endl;
+                std::cout << "Reference: " << CALIB_RESISTOR_VALUE << "Ω resistor" << std::endl;
+                std::cout << "Calibration point: 1.28mA @ 20kHz" << std::endl;
+                std::cout << "Measured magnitude: " << magnitude << " counts" << std::endl;
+                std::cout << "Counts per ohm: " << _counts_per_ohm << std::endl;
+                std::cout << "========================================" << std::endl << std::endl;
+
                 process_all_settings_for_MAX30009();
                 process_ext_MUX_settings_for_MAX30009();
 
@@ -421,12 +467,55 @@ std::string MAX30009_process::process_JSON_line(const char * JSON_line)
                 {
                     MAX30009_user_sett.ext_MUX_state = parsed_json["ext_MUX_state"];
                 }
+
+                // Lead-off detection settings
+                if (parsed_json.contains("enable_leadoff"))
+                {
+                    MAX30009_user_sett.enable_leadoff_detection = parsed_json["enable_leadoff"];
+                }
+                if (parsed_json.contains("enable_drv_oor"))
+                {
+                    MAX30009_user_sett.enable_drv_oor_detection = parsed_json["enable_drv_oor"];
+                }
+                if (parsed_json.contains("enable_bioz_threshold"))
+                {
+                    MAX30009_user_sett.enable_bioz_threshold_detection = parsed_json["enable_bioz_threshold"];
+                }
+                if (parsed_json.contains("bioz_lo_threshold"))
+                {
+                    MAX30009_user_sett.bioz_lo_threshold = parsed_json["bioz_lo_threshold"];
+                }
+                if (parsed_json.contains("bioz_hi_threshold"))
+                {
+                    MAX30009_user_sett.bioz_hi_threshold = parsed_json["bioz_hi_threshold"];
+                }
+
+                // Drive electrode lead-off detection settings (software threshold)
+                if (parsed_json.contains("enable_drive_leadoff"))
+                {
+                    MAX30009_user_sett.enable_drive_leadoff = parsed_json["enable_drive_leadoff"];
+                }
+                if (parsed_json.contains("leadoff_threshold_ohms"))
+                {
+                    MAX30009_user_sett.leadoff_threshold_ohms = parsed_json["leadoff_threshold_ohms"];
+                }
+
                 process_ext_MUX_settings_for_MAX30009();
                 process_all_settings_for_MAX30009();
                 process_all_settings_for_MAX30009();
                 process_all_settings_for_MAX30009();
                 process_all_settings_for_MAX30009();
                 return get_all_settings_as_json();
+            }
+
+            if (command_type == "get_leadoff_status")
+            {
+                return get_leadoff_status_as_json();
+            }
+
+            if (command_type == "get_drive_leadoff_status")
+            {
+                return get_drive_leadoff_status_as_json();
             }
 
             if (command_type == "get_data")
@@ -480,6 +569,18 @@ std::string MAX30009_process::get_all_settings_as_json(void)
     response_json["measure_enable"] = MAX30009_user_sett.measure_enable;
     response_json["power_enable"] = MAX30009_user_sett.power_enable;
     response_json["ext_MUX_state"] = MAX30009_user_sett.ext_MUX_state;
+
+    // Lead-off detection settings
+    response_json["enable_leadoff"] = MAX30009_user_sett.enable_leadoff_detection;
+    response_json["enable_drv_oor"] = MAX30009_user_sett.enable_drv_oor_detection;
+    response_json["enable_bioz_threshold"] = MAX30009_user_sett.enable_bioz_threshold_detection;
+    response_json["bioz_lo_threshold"] = MAX30009_user_sett.bioz_lo_threshold;
+    response_json["bioz_hi_threshold"] = MAX30009_user_sett.bioz_hi_threshold;
+
+    // Drive electrode lead-off detection settings (software threshold)
+    response_json["enable_drive_leadoff"] = MAX30009_user_sett.enable_drive_leadoff;
+    response_json["leadoff_threshold_ohms"] = MAX30009_user_sett.leadoff_threshold_ohms;
+
     return response_json.dump();
 }
 
@@ -648,6 +749,9 @@ void MAX30009_process::process_all_settings_for_MAX30009(void)
     _IFIFO_write_pos=0;
     _IFIFO_read_pos=0;
 
+    // Configure lead-off detection
+    configure_leadoff_detection();
+
 }
 
 void MAX30009_process::process_ext_MUX_settings_for_MAX30009(void)
@@ -815,3 +919,290 @@ std::string MAX30009_process::get_timestamp_string()
 
     return ss.str();
 }
+
+void MAX30009_process::configure_leadoff_detection()
+{
+    std::cout << std::endl << "========================================" << std::endl;
+    std::cout << "MAX30009: Configuring Lead-Off Detection" << std::endl;
+    std::cout << "========================================" << std::endl;
+
+    if (!MAX30009_user_sett.enable_leadoff_detection) {
+        // Disable all lead-off detection
+        std::cout << "LOD: Disabling lead-off detection" << std::endl;
+        MAX30009.set_DRV_OOR_detection_enable(false);
+        MAX30009.set_BIOZ_threshold_detection_enable(false);
+        std::cout << "LOD: Configuration complete (disabled)" << std::endl;
+        return;
+    }
+
+    // Configure DRV out-of-range for DRVP/DRVN (tetrapolar drive path)
+    if (MAX30009_user_sett.enable_drv_oor_detection) {
+        std::cout << "LOD: Enabling DRV out-of-range detection (DRVP/DRVN)" << std::endl;
+        MAX30009.set_DRV_OOR_detection_enable(true);
+    } else {
+        MAX30009.set_DRV_OOR_detection_enable(false);
+    }
+
+    // Configure BioZ threshold for BIP/BIN (AC lead-off via ADC output monitoring)
+    if (MAX30009_user_sett.enable_bioz_threshold_detection) {
+        std::cout << "LOD: Enabling BioZ threshold detection (BIP/BIN)" << std::endl;
+        std::cout << "LOD: Low threshold = " << (int)MAX30009_user_sett.bioz_lo_threshold << std::endl;
+        std::cout << "LOD: High threshold = " << (int)MAX30009_user_sett.bioz_hi_threshold << std::endl;
+
+        MAX30009.set_BIOZ_threshold_detection_enable(true);
+        MAX30009.set_BIOZ_low_threshold(MAX30009_user_sett.bioz_lo_threshold);
+        MAX30009.set_BIOZ_high_threshold(MAX30009_user_sett.bioz_hi_threshold);
+    } else {
+        MAX30009.set_BIOZ_threshold_detection_enable(false);
+    }
+
+    // Reset status and debounce counters
+    _leadoff_drv_oor = false;
+    _leadoff_bioz_over = false;
+    _leadoff_bioz_under = false;
+    _leadoff_debounce_drv_oor = 0;
+    _leadoff_debounce_bioz_over = 0;
+    _leadoff_debounce_bioz_under = 0;
+    _leadoff_check_counter = 0;
+
+    std::cout << "LOD: Configuration complete" << std::endl;
+    std::cout << "========================================" << std::endl << std::endl;
+}
+
+void MAX30009_process::read_leadoff_status()
+{
+    MAX30009_STATUS_STRUCT_TYPE status;
+    if (!MAX30009.read_status(&status)) {
+        return;  // Read failed
+    }
+
+    // Process DRV out-of-range status with debouncing
+    if (MAX30009_user_sett.enable_drv_oor_detection) {
+        bool raw_drv_oor = status.DRVN_out_of_range;
+
+        if (raw_drv_oor == _leadoff_drv_oor) {
+            // Status unchanged, reset debounce counter
+            _leadoff_debounce_drv_oor = 0;
+        } else {
+            // Status different, increment debounce counter
+            _leadoff_debounce_drv_oor++;
+            if (_leadoff_debounce_drv_oor >= LEADOFF_DEBOUNCE_COUNT) {
+                _leadoff_drv_oor = raw_drv_oor;
+                _leadoff_debounce_drv_oor = 0;
+                std::cout << "LOD STATUS CHANGE: DRV_OOR = "
+                          << (raw_drv_oor ? "DISCONNECTED" : "CONNECTED") << std::endl;
+            }
+        }
+    }
+
+    // Process BioZ over threshold status with debouncing
+    if (MAX30009_user_sett.enable_bioz_threshold_detection) {
+        bool raw_bioz_over = status.BIOZ_over_level;
+
+        if (raw_bioz_over == _leadoff_bioz_over) {
+            _leadoff_debounce_bioz_over = 0;
+        } else {
+            _leadoff_debounce_bioz_over++;
+            if (_leadoff_debounce_bioz_over >= LEADOFF_DEBOUNCE_COUNT) {
+                _leadoff_bioz_over = raw_bioz_over;
+                _leadoff_debounce_bioz_over = 0;
+                std::cout << "LOD STATUS CHANGE: BIOZ_OVER = " << (raw_bioz_over ? "TRUE" : "FALSE") << std::endl;
+            }
+        }
+
+        // Process BioZ under threshold status with debouncing
+        bool raw_bioz_under = status.BIOZ_under_level;
+
+        if (raw_bioz_under == _leadoff_bioz_under) {
+            _leadoff_debounce_bioz_under = 0;
+        } else {
+            _leadoff_debounce_bioz_under++;
+            if (_leadoff_debounce_bioz_under >= LEADOFF_DEBOUNCE_COUNT) {
+                _leadoff_bioz_under = raw_bioz_under;
+                _leadoff_debounce_bioz_under = 0;
+                std::cout << "LOD STATUS CHANGE: BIOZ_UNDER = " << (raw_bioz_under ? "TRUE" : "FALSE") << std::endl;
+            }
+        }
+    }
+
+    // Also capture DC lead-off status (even if not actively using DC detection)
+    _leadoff_bip_high = status.DC_LOFF_BIP_overlimit;
+    _leadoff_bip_low = status.DC_LOFF_BIP_underlimit;
+    _leadoff_bin_high = status.DC_LOFF_BIN_overlimit;
+    _leadoff_bin_low = status.DC_LOFF_BIN_underlimit;
+}
+
+std::string MAX30009_process::get_leadoff_status_as_json()
+{
+    nlohmann::json response;
+    response["type"] = "leadoff_status";
+    response["timestamp"] = get_timestamp_string();
+    response["enabled"] = MAX30009_user_sett.enable_leadoff_detection;
+
+    // Configuration info
+    response["drv_oor_enabled"] = MAX30009_user_sett.enable_drv_oor_detection;
+    response["bioz_threshold_enabled"] = MAX30009_user_sett.enable_bioz_threshold_detection;
+    response["bioz_lo_threshold"] = MAX30009_user_sett.bioz_lo_threshold;
+    response["bioz_hi_threshold"] = MAX30009_user_sett.bioz_hi_threshold;
+
+    // Status object
+    nlohmann::json status_obj;
+
+    // DRV out-of-range (DRVP/DRVN electrodes)
+    if (MAX30009_user_sett.enable_drv_oor_detection) {
+        status_obj["drv_oor"] = _leadoff_drv_oor ? "disconnected" : "connected";
+    } else {
+        status_obj["drv_oor"] = "not_monitored";
+    }
+
+    // BioZ threshold (BIP/BIN electrodes via ADC output)
+    if (MAX30009_user_sett.enable_bioz_threshold_detection) {
+        status_obj["bioz_over"] = _leadoff_bioz_over;
+        status_obj["bioz_under"] = _leadoff_bioz_under;
+    } else {
+        status_obj["bioz_over"] = "not_monitored";
+        status_obj["bioz_under"] = "not_monitored";
+    }
+
+    // DC lead-off status (informational, even if not actively used)
+    status_obj["dc_bip_high"] = _leadoff_bip_high;
+    status_obj["dc_bip_low"] = _leadoff_bip_low;
+    status_obj["dc_bin_high"] = _leadoff_bin_high;
+    status_obj["dc_bin_low"] = _leadoff_bin_low;
+
+    response["status"] = status_obj;
+
+    // Alarm flag (true if ANY monitored electrode is disconnected)
+    bool alarm = false;
+    if (MAX30009_user_sett.enable_leadoff_detection) {
+        if (MAX30009_user_sett.enable_drv_oor_detection && _leadoff_drv_oor) {
+            alarm = true;
+        }
+        if (MAX30009_user_sett.enable_bioz_threshold_detection && (_leadoff_bioz_over || _leadoff_bioz_under)) {
+            alarm = true;
+        }
+    }
+    response["alarm"] = alarm;
+
+    return response.dump();
+}
+
+//=============================================================================
+// Drive Electrode Lead-Off Detection (Simple Software Threshold)
+//=============================================================================
+
+void MAX30009_process::check_drive_leadoff()
+{
+    // Calculate impedance (already done for other purposes)
+    if (_IFIFO_write_pos == 0) return;
+
+    uint32_t latest_pos = (_IFIFO_write_pos - 1) % _max_IFIFO_size;
+    int32_t I_val = _IFIFO_BUF[latest_pos].I_data;
+    int32_t Q_val = _IFIFO_BUF[latest_pos].Q_data;
+
+    // Get calibration coefficients
+    uint32_t freq_idx = 0;
+    for (uint32_t i = 0; i < FREQ_POINTS_COUNT; i++) {
+        if (FREQ_POINTS[i] == MAX30009_user_sett.stimulate_frequency) {
+            freq_idx = i;
+            break;
+        }
+    }
+    MAX30009_CALIB_DATA coef = _calibrate_data[MAX30009_user_sett.stimulate_current_select][freq_idx];
+
+    // Apply full calibration
+    MAX30009_FIFO_DATA I_ch_data, Q_ch_data;
+    I_ch_data.data_source = MAX30009_I_CHANNEL;
+    I_ch_data.channel_value = I_val;
+    Q_ch_data.data_source = MAX30009_Q_CHANNEL;
+    Q_ch_data.channel_value = Q_val;
+
+    MAX30009.calculate_impendance(&I_ch_data, coef);
+    MAX30009.calculate_impendance(&Q_ch_data, coef);
+
+    MAX30009_FIFO_DATA_CALIB_TYPE calibrated =
+        MAX30009.calibrate_FIFO_data(I_ch_data, Q_ch_data, coef);
+
+    double impedance = calibrated.Load_mag;
+
+    // Simple threshold detection
+    DRIVE_LEAD_STATUS_ENUM new_status =
+        (impedance > MAX30009_user_sett.leadoff_threshold_ohms) ?
+        DRIVE_LEAD_OFF : DRIVE_LEAD_ON;
+
+    // Software debounce (3 consecutive reads)
+    if (new_status == _drive_lead_status_prev) {
+        _drive_leadoff_debounce_count++;
+        if (_drive_leadoff_debounce_count >= 3 &&
+            new_status != _drive_lead_status) {
+            // Status changed after debounce
+            _drive_lead_status = new_status;
+
+            // Print status change notification
+            std::cout << std::endl;
+            std::cout << "========================================" << std::endl;
+            std::cout << "DRIVE LEAD STATUS CHANGE" << std::endl;
+            std::cout << "Impedance: " << std::fixed << std::setprecision(1) << impedance << "Ω"
+                      << " (threshold: " << MAX30009_user_sett.leadoff_threshold_ohms << "Ω)" << std::endl;
+            std::cout << "Status: " << (new_status == DRIVE_LEAD_ON ? "CONNECTED" : "DISCONNECTED") << std::endl;
+            std::cout << "========================================" << std::endl << std::endl;
+        }
+    } else {
+        _drive_leadoff_debounce_count = 0;
+        _drive_lead_status_prev = new_status;
+    }
+
+    // Debug output every 1s
+    std::cout << "LOD: Z=" << std::fixed << std::setprecision(1)
+              << impedance << "Ω | Status="
+              << (new_status == DRIVE_LEAD_ON ? "CONNECTED" : "DISCONNECTED")
+              << " (debounce=" << (int)_drive_leadoff_debounce_count << "/3)"
+              << std::endl;
+}
+
+std::string MAX30009_process::get_drive_leadoff_status_as_json()
+{
+    nlohmann::json response;
+    response["type"] = "drive_leadoff_status";
+    response["timestamp"] = get_timestamp_string();
+    response["enabled"] = MAX30009_user_sett.enable_drive_leadoff;
+    response["threshold_ohms"] = MAX30009_user_sett.leadoff_threshold_ohms;
+
+    // Calculate current impedance
+    double impedance_ohms = 0.0;
+    if (_IFIFO_write_pos > 0) {
+        uint32_t latest_pos = (_IFIFO_write_pos - 1) % _max_IFIFO_size;
+        int32_t I_val = _IFIFO_BUF[latest_pos].I_data;
+        int32_t Q_val = _IFIFO_BUF[latest_pos].Q_data;
+
+        uint32_t freq_idx = 0;
+        for (uint32_t i = 0; i < FREQ_POINTS_COUNT; i++) {
+            if (FREQ_POINTS[i] == MAX30009_user_sett.stimulate_frequency) {
+                freq_idx = i;
+                break;
+            }
+        }
+        MAX30009_CALIB_DATA coef = _calibrate_data[MAX30009_user_sett.stimulate_current_select][freq_idx];
+
+        MAX30009_FIFO_DATA I_ch_data, Q_ch_data;
+        I_ch_data.data_source = MAX30009_I_CHANNEL;
+        I_ch_data.channel_value = I_val;
+        Q_ch_data.data_source = MAX30009_Q_CHANNEL;
+        Q_ch_data.channel_value = Q_val;
+
+        MAX30009.calculate_impendance(&I_ch_data, coef);
+        MAX30009.calculate_impendance(&Q_ch_data, coef);
+
+        MAX30009_FIFO_DATA_CALIB_TYPE calibrated =
+            MAX30009.calibrate_FIFO_data(I_ch_data, Q_ch_data, coef);
+
+        impedance_ohms = calibrated.Load_mag;
+    }
+
+    response["impedance_ohms"] = impedance_ohms;
+    response["status"] = (_drive_lead_status == DRIVE_LEAD_ON) ? "connected" : "disconnected";
+    response["debounce_count"] = _drive_leadoff_debounce_count;
+
+    return response.dump();
+}
+
