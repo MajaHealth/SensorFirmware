@@ -33,16 +33,30 @@ class TCPClient:
         self._buffer = b''  # Clear buffer on connect
 
         # Server sends "Connection accepted\n" greeting, read and discard it
-        greeting = b''
-        while b'\n' not in greeting:
-            chunk = self.socket.recv(4096)
-            if not chunk:
-                break
-            greeting += chunk
-        # Check if greeting contains more data after the newline
-        if b'\n' in greeting:
-            idx = greeting.index(b'\n') + 1
-            self._buffer = greeting[idx:]  # Save any extra data
+        # Use shorter timeout for greeting to avoid long waits if service busy
+        old_timeout = self.socket.gettimeout()
+        self.socket.settimeout(1.0)  # 1 second for greeting
+
+        try:
+            greeting = b''
+            while b'\n' not in greeting:
+                try:
+                    chunk = self.socket.recv(4096)
+                    if not chunk:
+                        break
+                    greeting += chunk
+                except socket.timeout:
+                    # No greeting received within timeout, continue anyway
+                    # Service may be busy (e.g., sending async messages)
+                    break
+
+            # Check if greeting contains more data after the newline
+            if b'\n' in greeting:
+                idx = greeting.index(b'\n') + 1
+                self._buffer = greeting[idx:]  # Save any extra data
+        finally:
+            # Restore original timeout for subsequent operations
+            self.socket.settimeout(old_timeout)
 
     def disconnect(self):
         """Close connection to service."""

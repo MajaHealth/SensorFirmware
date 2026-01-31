@@ -39,8 +39,8 @@ class TestPowerCyclingRetention:
             'target_power_cycles': 3,  # Number of power cycles to test
             'auto_reboot': False,      # Set True for automated testing
 
-            # Storage locations
-            'emmc_test_dir': '/tmp',
+            # Storage locations (use /var/tmp which persists across reboots)
+            'emmc_test_dir': '/var/tmp',
             'emmc_test_file': 'retention_test_emmc.bin',
 
             # Device names

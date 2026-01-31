@@ -53,6 +53,7 @@ from sensor_helpers import configure_ads1293, get_sensor_data, power_off_sensor
 @pytest.mark.hardware
 @pytest.mark.ads1293
 @pytest.mark.long
+@pytest.mark.timeout(7200)  # 2 hours timeout per test (1 hr data + overhead)
 @pytest.mark.parametrize("bpm", [30, 60, 120, 180])
 def test_ads1293_ecg_1hr(test_config, results_dir, bpm):
     """
@@ -108,9 +109,17 @@ def test_ads1293_ecg_1hr(test_config, results_dir, bpm):
     logger = JSONLLogger(
         str(output_file),
         test_id="test_011",
-        sensor="ads1293",
-        metadata={"bpm_setting": bpm, "duration_sec": test_duration}
+        sensor="ads1293"
     )
+
+    # Write initial metadata
+    logger.write_raw({
+        "type": "test_metadata",
+        "test_id": "test_011",
+        "bpm_setting": bpm,
+        "duration_sec": test_duration,
+        "expected_frequency_hz": expected_freq
+    })
 
     # Connect to ADS1293
     print(f"[Step 1] Connecting to ADS1293 at {ads_config['host']}:{ads_config['port']}...")
@@ -141,12 +150,21 @@ def test_ads1293_ecg_1hr(test_config, results_dir, bpm):
         time.sleep(2.0)
         print("✓ Sensor ready\n")
 
-        # Flush accumulated buffer data
+        # Flush accumulated buffer data (multiple times to ensure clean state)
         print(f"[Step 4] Flushing accumulated buffer...")
-        flush_response = get_sensor_data(client)
-        if flush_response["type"] == "data":
-            flushed_count = len(flush_response["data"])
-            print(f"✓ Flushed {flushed_count} accumulated samples from buffer\n")
+        total_flushed = 0
+        flush_attempts = 3
+        for attempt in range(flush_attempts):
+            flush_response = get_sensor_data(client)
+            if flush_response["type"] == "data":
+                flushed_count = len(flush_response["data"])
+                total_flushed += flushed_count
+                if flushed_count > 0:
+                    print(f"  Flush attempt {attempt + 1}: {flushed_count} samples")
+                time.sleep(0.2)  # Brief pause between flushes
+            else:
+                break
+        print(f"✓ Flushed {total_flushed} accumulated samples from buffer\n")
 
         # Collect data
         print(f"[Step 5] Collecting data for {test_duration} seconds ({test_duration/3600:.1f} hour)...")
@@ -247,6 +265,11 @@ def test_ads1293_ecg_1hr(test_config, results_dir, bpm):
         print(f"[Step 8] Analyzing BPM...")
         print(f"  Simulator BPM setting: {bpm}")
 
+        # Initialize BPM variables
+        measured_bpm = None
+        bpm_error = None
+        peaks = []
+
         # Extract channel 1 data (exclude sync markers and error markers)
         ch1_data = [d[0] for d in all_data if d[0] not in [-99999, -99998]]
 
@@ -256,40 +279,47 @@ def test_ads1293_ecg_1hr(test_config, results_dir, bpm):
 
         # Basic BPM estimation using peak detection
         # Note: This is a simplified approach; real BPM detection is more complex
-        from scipy.signal import find_peaks
+        try:
+            from scipy.signal import find_peaks
 
-        # Find peaks (R-peaks in ECG)
-        peaks, _ = find_peaks(ecg_signal, distance=int(actual_freq * 0.5))  # Min 0.5s between peaks
+            # Find peaks (R-peaks in ECG)
+            peaks, _ = find_peaks(ecg_signal, distance=int(actual_freq * 0.5))  # Min 0.5s between peaks
 
-        # Calculate BPM from peaks
-        if len(peaks) > 1:
-            peak_intervals = np.diff(peaks) / actual_freq  # Convert to seconds
-            mean_interval = np.mean(peak_intervals)
-            measured_bpm = 60.0 / mean_interval if mean_interval > 0 else 0
+            # Calculate BPM from peaks
+            if len(peaks) > 1:
+                peak_intervals = np.diff(peaks) / actual_freq  # Convert to seconds
+                mean_interval = np.mean(peak_intervals)
+                measured_bpm = 60.0 / mean_interval if mean_interval > 0 else 0
 
-            print(f"  Detected peaks: {len(peaks)}")
-            print(f"  Mean peak interval: {mean_interval:.3f} s")
-            print(f"  Measured BPM: {measured_bpm:.1f}")
+                print(f"  Detected peaks: {len(peaks)}")
+                print(f"  Mean peak interval: {mean_interval:.3f} s")
+                print(f"  Measured BPM: {measured_bpm:.1f}")
 
-            # Calculate BPM error thresholds
-            bpm_error_abs_threshold = bpm_absolute_error
-            bpm_error_pct_threshold = bpm * (bpm_percent_error / 100.0)
-            bpm_tolerance = max(bpm_error_abs_threshold, bpm_error_pct_threshold)
+                # Calculate BPM error thresholds
+                bpm_error_abs_threshold = bpm_absolute_error
+                bpm_error_pct_threshold = bpm * (bpm_percent_error / 100.0)
+                bpm_tolerance = max(bpm_error_abs_threshold, bpm_error_pct_threshold)
 
-            bpm_error = abs(measured_bpm - bpm)
-            print(f"  BPM error: {bpm_error:.1f} bpm")
-            print(f"  BPM tolerance: ±{bpm_tolerance:.1f} bpm")
+                bpm_error = abs(measured_bpm - bpm)
+                print(f"  BPM error: {bpm_error:.1f} bpm")
+                print(f"  BPM tolerance: ±{bpm_tolerance:.1f} bpm")
 
-            assert bpm_error <= bpm_tolerance, \
-                f"BPM mismatch: expected {bpm} ± {bpm_tolerance:.1f}, got {measured_bpm:.1f}"
-            print(f"  ✓ BPM within tolerance\n")
-        else:
-            print(f"  ⚠ Warning: Insufficient peaks detected for BPM calculation")
-            print(f"  Skipping BPM validation (manual review required)\n")
+                assert bpm_error <= bpm_tolerance, \
+                    f"BPM mismatch: expected {bpm} ± {bpm_tolerance:.1f}, got {measured_bpm:.1f}"
+                print(f"  ✓ BPM within tolerance\n")
+            else:
+                print(f"  ⚠ Warning: Insufficient peaks detected for BPM calculation")
+                print(f"  Skipping BPM validation (manual review required)\n")
+
+        except ImportError as e:
+            print(f"  ⚠ Warning: scipy not available ({e})")
+            print(f"  Skipping BPM analysis - install scipy for BPM validation")
+            print(f"  Run: pip install scipy\n")
 
         # Log metrics summary
         print(f"[Step 9] Logging metrics summary...")
         metrics = {
+            "type": "test_summary",
             "test_id": "test_011",
             "bpm_setting": bpm,
             "test_duration_sec": test_duration,
@@ -300,12 +330,12 @@ def test_ads1293_ecg_1hr(test_config, results_dir, bpm):
             "calculated_frequency_hz": actual_freq,
             "expected_frequency_hz": expected_freq,
             "frequency_error_hz": abs(actual_freq - expected_freq),
-            "measured_bpm": measured_bpm if len(peaks) > 1 else None,
-            "bpm_error": bpm_error if len(peaks) > 1 else None,
-            "peaks_detected": len(peaks) if len(peaks) > 1 else None
+            "measured_bpm": measured_bpm,
+            "bpm_error": bpm_error,
+            "peaks_detected": len(peaks) if peaks else None
         }
 
-        logger.write_metadata(metrics)
+        logger.write_raw(metrics)
         print(f"  ✓ Metrics logged\n")
 
         # Power off ADS1293
@@ -322,8 +352,13 @@ def test_ads1293_ecg_1hr(test_config, results_dir, bpm):
     print(f"Total samples: {len(all_data):,}")
     print(f"Sampling frequency: {actual_freq:.2f} Hz (expected {expected_freq} ± {freq_tolerance} Hz)")
     print(f"Sync markers: {len(sync_markers)} (expected ~{expected_sync_count})")
-    if len(peaks) > 1:
+    if measured_bpm is not None:
+        bpm_error_abs_threshold = bpm_absolute_error
+        bpm_error_pct_threshold = bpm * (bpm_percent_error / 100.0)
+        bpm_tolerance = max(bpm_error_abs_threshold, bpm_error_pct_threshold)
         print(f"Measured BPM: {measured_bpm:.1f} (expected {bpm} ± {bpm_tolerance:.1f})")
+    else:
+        print(f"Measured BPM: N/A (BPM analysis skipped)")
     print(f"Data file: {output_file}")
     print(f"{'='*70}")
     print(f"✓ TEST PASSED\n")

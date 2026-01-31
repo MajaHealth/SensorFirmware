@@ -6,16 +6,14 @@
 ## Quick Start
 
 ```bash
-# SSH into CM4
-ssh pi@192.168.x.x
+# From laptop - copy test file to Pi (one-time)
+scp tests/unit_tests/hw_component/test_033_boot_verification.py pi@192.168.x.x:~/
 
-# Navigate to project
-cd ~/sensor_test_project
-source venv/bin/activate
-
-# Run Test #33
-pytest tests/unit_tests/hw_component/test_033_boot_verification.py -v -s
+# SSH into CM4 and run
+ssh pi@192.168.x.x "pip3 install pytest && pytest ~/test_033_boot_verification.py -v -s"
 ```
+
+**Note:** This test reads local system logs (`dmesg`, `journalctl`), so it must run ON the CM4, not remotely.
 
 ---
 
@@ -85,32 +83,48 @@ No manual steps required!
 
 ## Running Test #33
 
-### Method 1: SSH and Run Directly (Recommended)
+### Method 1: Copy Test to Pi and Run (Recommended)
+
+This test reads local system logs, so it **must run ON the CM4**.
 
 ```bash
-# From your laptop
+# From your laptop - copy test file to Pi
+scp tests/unit_tests/hw_component/test_033_boot_verification.py pi@192.168.x.x:~/
+
+# SSH to Pi
 ssh pi@192.168.x.x
 
-# On CM4
-cd ~/sensor_test_project
-source venv/bin/activate
+# On Pi - install pytest if needed
+pip3 install pytest
 
-# Run test
-pytest tests/unit_tests/hw_component/test_033_boot_verification.py -v -s
+# Run the test
+pytest ~/test_033_boot_verification.py -v -s
 ```
 
-### Method 2: Use Remote Script
+### Method 2: One-Time Setup on Pi
+
+If you run this test frequently, set up once on Pi:
 
 ```bash
-# From your laptop
-./scripts/run-unit-test-remote.sh 192.168.x.x test_033
+# From laptop - copy test files
+scp tests/unit_tests/hw_component/test_033_boot_verification.py pi@192.168.x.x:~/tests/
+
+# SSH to Pi
+ssh pi@192.168.x.x
+
+# Create simple test directory
+mkdir -p ~/tests
+pip3 install pytest
+
+# Run test anytime
+pytest ~/tests/test_033_boot_verification.py -v -s
 ```
 
-### Method 3: One-Liner via SSH
+### Method 3: One-Liner (After Setup)
 
 ```bash
-# From your laptop
-ssh pi@192.168.x.x "cd ~/sensor_test_project && source venv/bin/activate && pytest tests/unit_tests/hw_component/test_033_boot_verification.py -v -s"
+# From your laptop (after copying test file to Pi)
+ssh pi@192.168.x.x "pytest ~/test_033_boot_verification.py -v -s"
 ```
 
 ---
@@ -631,12 +645,14 @@ This test **must run on CM4** because:
 - WSL2 has different boot process
 - Test validates actual CM4 hardware boot
 
-### ✅ Run Remotely on CM4
+### ✅ Run on CM4 via SSH
 
 ```bash
-# From WSL2/laptop, run test on CM4
-export PI_IP=192.168.x.x
-./scripts/run-unit-test-remote.sh $PI_IP test_033
+# From WSL2/laptop - first copy test file (one-time)
+scp tests/unit_tests/hw_component/test_033_boot_verification.py pi@192.168.x.x:~/
+
+# Run test on CM4 via SSH
+ssh pi@192.168.x.x "pytest ~/test_033_boot_verification.py -v -s"
 ```
 
 ---

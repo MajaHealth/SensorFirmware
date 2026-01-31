@@ -53,19 +53,21 @@ class MockWiFiLogger:
         self.polling_interval_ms = interval_ms
 
     def capture_logs(self, duration_intervals: int) -> List[WiFiLogEntry]:
-        """Capture logs for specified number of intervals"""
-        self.logs = []
+        """Capture logs for specified number of intervals (accumulates logs)"""
         interval_sec = self.polling_interval_ms / 1000
+        captured = []
 
         for i in range(duration_intervals):
-            self.logs.append(WiFiLogEntry(
+            entry = WiFiLogEntry(
                 timestamp=time.time(),
                 state=self.current_state,
                 is_transition=False
-            ))
+            )
+            self.logs.append(entry)
+            captured.append(entry)
             time.sleep(interval_sec * 0.1)  # Simulated time
 
-        return self.logs
+        return captured
 
     def simulate_disconnect(self):
         self.current_state = "DISCONNECTED"

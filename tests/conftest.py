@@ -61,7 +61,10 @@ def test_config():
 @pytest.fixture(scope="session")
 def results_dir(tmp_path_factory):
     """Create results directory for test outputs."""
-    results = tmp_path_factory.mktemp("test-results")
+    # Use permanent directory for long-duration test data
+    # This prevents data loss when pytest cleans up temp directories
+    results = Path.home() / "sensor-test-data"
+    results.mkdir(parents=True, exist_ok=True)
     return results
 
 @pytest.fixture
@@ -73,6 +76,72 @@ def service_ports(test_config):
 def thresholds(test_config):
     """Get pass/fail thresholds."""
     return test_config['thresholds']
+
+
+@pytest.fixture(scope="function", autouse=False)
+def max30009_cleanup(test_config):
+    """
+    Shared fixture for MAX30009 tests to ensure clean state.
+
+    This fixture runs BEFORE and AFTER each MAX30009 test to:
+    1. Stop any ongoing measurement (measure_enable=False)
+    2. Clear any pending async PUSH messages
+    3. Ensure firmware is in MMD_STOP state
+
+    Usage: Add 'max30009_cleanup' parameter to test function
+    """
+    import sys
+    import time
+    from pathlib import Path
+
+    # Add common module to path
+    sys.path.insert(0, str(Path(__file__).parent / "common"))
+    from tcp_client import TCPClient
+
+    max_config = test_config['services']['max30009']
+
+    def cleanup_max30009():
+        """Helper to stop measurement and clear state."""
+        try:
+            with TCPClient(max_config['host'], max_config['port']) as client:
+                stop_request = {
+                    "type": "settings",
+                    "measure_enable": False,
+                    "stimulate_frequency": 10000,
+                    "measure_frequency": 5,
+                    "stimulate_current": "64uA"
+                }
+
+                # Stop measurement
+                response = client.send(stop_request)
+
+                # Wait for state transition
+                if response.get('type') == 'actual_settings':
+                    time.sleep(0.5)
+
+                # Clear pending async messages
+                time.sleep(0.3)
+                drain_attempts = 0
+                while drain_attempts < 10:
+                    try:
+                        msg = client.recv(timeout=0.2)
+                        if not msg:
+                            break
+                        drain_attempts += 1
+                    except:
+                        break
+        except Exception as e:
+            # If cleanup fails, log but don't fail the test
+            print(f"Warning: MAX30009 cleanup failed: {e}")
+
+    # Setup: Clean state before test
+    cleanup_max30009()
+
+    # Run test
+    yield
+
+    # Teardown: Clean state after test
+    cleanup_max30009()
 
 
 # ============================================================================

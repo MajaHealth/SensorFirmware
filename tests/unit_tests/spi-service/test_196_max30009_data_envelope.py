@@ -318,6 +318,46 @@ class MAX30009ServiceClient:
             return response.get('measure_enable', False)
         return False
 
+    def get_measure_state(self) -> Optional[str]:
+        """Get current measurement state from firmware"""
+        if self.use_mock:
+            return "measuring" if self.mock.measuring else "idle"
+
+        response = self.send_command({"type": "get_settings"})
+        if response:
+            return response.get('meas_state', response.get('type', 'unknown'))
+        return None
+
+    def wait_for_measuring_state(self, max_wait: float = 15.0) -> bool:
+        """
+        Wait for sensor to reach MEASURING state.
+        Returns True if measuring state reached, False if timeout.
+        """
+        if self.use_mock:
+            return True
+
+        print(f"  Waiting for sensor to reach MEASURING state (max {max_wait}s)...")
+        start_time = time.time()
+        last_state = None
+
+        while (time.time() - start_time) < max_wait:
+            # Try get_data to check response type
+            response = self.send_command({"type": "get_data"})
+            if response:
+                resp_type = response.get('type', '')
+
+                if resp_type == 'data':
+                    print(f"    Sensor is now MEASURING (took {time.time() - start_time:.1f}s)")
+                    return True
+                elif resp_type != last_state:
+                    print(f"    State: {resp_type}")
+                    last_state = resp_type
+
+            time.sleep(0.5)
+
+        print(f"  WARNING: Timeout waiting for MEASURING state")
+        return False
+
 
 class DataEnvelopeValidator:
     """Validates MAX30009 data envelope responses"""
@@ -464,8 +504,9 @@ class TestMAX30009DataEnvelope:
             'host': host,
             'port': port,
             'timeout': 10.0,
-            'measurement_settle_time': 2.0,  # Time to wait after enabling measurement
+            'measurement_settle_time': 8.0,  # Time to wait after enabling measurement (calibration takes ~6-8s)
             'data_accumulation_time': 0.5,   # Time to wait for data to accumulate
+            'max_state_wait_time': 15.0,     # Maximum time to wait for MEASURING state
             'log_file': '/tmp/test_196_max30009_data_envelope.log',
         }
 
@@ -588,17 +629,18 @@ class TestMAX30009DataEnvelope:
         enabled = self.client.enable_measurement()
         assert enabled, "Failed to enable measurement"
 
-        # Wait for measurement to stabilize
-        print(f"  Waiting {config['measurement_settle_time']}s for measurement to start...")
-        time.sleep(config['measurement_settle_time'])
-
-        # Verify measuring
-        is_measuring = self.client.is_measuring()
-        print(f"  Measurement active: {is_measuring}")
-
+        # Wait for sensor to reach MEASURING state
         if not self.client.use_mock:
-            # For hardware, we may need to verify state differently
-            pass
+            measuring = self.client.wait_for_measuring_state(
+                max_wait=config.get('max_state_wait_time', 15.0)
+            )
+            print(f"  Measurement active: {measuring}")
+        else:
+            # For mock, just wait the settle time
+            print(f"  Waiting {config['measurement_settle_time']}s for measurement to start...")
+            time.sleep(config['measurement_settle_time'])
+            is_measuring = self.client.is_measuring()
+            print(f"  Measurement active: {is_measuring}")
 
         # Wait for data to accumulate
         print(f"  Waiting {config['data_accumulation_time']}s for data accumulation...")
@@ -767,7 +809,16 @@ class TestMAX30009DataEnvelope:
         # Enable measurement
         print("\n  Enabling measurement...")
         self.client.enable_measurement()
-        time.sleep(config['measurement_settle_time'])
+
+        # Wait for sensor to reach MEASURING state (handles calibration time)
+        if not self.client.use_mock:
+            measuring = self.client.wait_for_measuring_state(
+                max_wait=config.get('max_state_wait_time', 15.0)
+            )
+            if not measuring:
+                print("  WARNING: Sensor did not reach MEASURING state, test may fail")
+        else:
+            time.sleep(config['measurement_settle_time'])
 
         # Send multiple get_data requests
         num_requests = 5
