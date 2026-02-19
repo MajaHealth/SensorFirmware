@@ -1,0 +1,624 @@
+# depslib dependency file v1.0
+1738708530 source:/home/pi/Desktop/SPI_DEV_servise/main.cpp
+	"ADS1293_LIB/ADS1293_LIB.h"
+	"SPI_DRIVER.h"
+	<iostream>
+	"MAX30009_LIB/max30009_lib.h"
+	"VT_SPI_stream.h"
+	"GPIO_driver.h"
+
+1738624232 /home/pi/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_LIB.h
+	"stdint.h"
+	"VT_register_container.h"
+	"ADS1293_register_map.h"
+	"ADS1293_IO.h"
+	"SPI_DRIVER.h"
+
+1600357154 /home/pi/Desktop/SPI_DEV_servise/ADS1293_LIB/VT_register_container.h
+	"stdint.h"
+	"VT_register_process_interface.h"
+
+1729970478 /home/pi/Desktop/SPI_DEV_servise/ADS1293_LIB/VT_register_process_interface.h
+
+1730067916 /home/pi/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_register_map.h
+
+1738625271 /home/pi/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_IO.h
+	"stdint.h"
+	"VT_register_process_interface.h"
+	"SPI_DRIVER.h"
+
+1738707841 /home/pi/Desktop/SPI_DEV_servise/include/SPI_DRIVER.h
+	<stdio.h>
+	<fcntl.h>
+	<unistd.h>
+	<sys/ioctl.h>
+	<linux/spi/spidev.h>
+	"GPIO_driver.h"
+
+1724340474 source:/home/pi/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lead.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1724340474 /home/pi/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib.h
+	"VT_sync_data_stream_interface.h"
+	"max30009_register_struct.h"
+	"stdint.h"
+
+1698871888 /home/pi/Desktop/SPI_DEV_servise/include/VT_sync_data_stream_interface.h
+	"stdint.h"
+
+1698857622 /home/pi/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_register_struct.h
+	"stdint.h"
+
+1707268022 source:/home/pi/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1707255164 source:/home/pi/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_BIOZ.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1698857734 source:/home/pi/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_BIS.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1724340388 source:/home/pi/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_CALIBRATE.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1716193582 source:/home/pi/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_FIFO.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1698857734 source:/home/pi/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_MUX.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1698857734 source:/home/pi/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_PLL.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1738691179 /home/pi/Desktop/SPI_DEV_servise/include/VT_SPI_stream.h
+	"stdint.h"
+	"VT_sync_data_stream_interface.h"
+	"SPI_DRIVER.h"
+
+1738190387 /usr/local/include//wiringPi.h
+	<stdio.h>
+	<stdint.h>
+	<pthread.h>
+
+1738707156 /home/pi/Desktop/SPI_DEV_servise/include/GPIO_driver.h
+	<wiringPi.h>
+
+1755306239 source:/home/vtt/Desktop/SPI_DEV_servise/main.cpp
+	<iostream>
+	"MAX30009_LIB/max30009_lib.h"
+	"GPIO_driver.h"
+	"SPI_hard_driver.h"
+	<chrono>
+	<thread>
+	"max30009_ext_mux.h"
+	"MAX30009_process.h"
+	"ADS1293_process.h"
+	"WS2812_process.h"
+	<iostream>
+	<vector>
+	<unistd.h>
+	"JSON_TCP_sever.h"
+	<atomic>
+
+1748623290 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_LIB.h
+	"stdint.h"
+	"VT_register_container.h"
+	"ADS1293_register_map.h"
+	"ADS1293_IO.h"
+	"VT_sync_data_stream_interface.h"
+
+1748062476 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/VT_register_container.h
+	"stdint.h"
+	"VT_register_process_interface.h"
+
+1729970478 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/VT_register_process_interface.h
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_register_map.h
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise/ADS1293_LIB/ADS1293_IO.h
+	"stdint.h"
+	"VT_register_process_interface.h"
+	"VT_sync_data_stream_interface.h"
+
+1748057927 /home/vtt/Desktop/SPI_DEV_servise/include/SPI_DRIVER.h
+	<stdio.h>
+	<fcntl.h>
+	<unistd.h>
+	<sys/ioctl.h>
+	<linux/spi/spidev.h>
+	"GPIO_driver.h"
+
+1748053813 /home/vtt/Desktop/SPI_DEV_servise/include/GPIO_driver.h
+	<string>
+	<cstdint>
+	<iostream>
+	<gpiod.h>
+
+1749506670 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib.h
+	"VT_sync_data_stream_interface.h"
+	"max30009_register_struct.h"
+	"stdint.h"
+	"max30009_data_struct.h"
+	"stdlib.h"
+	"math.h"
+
+1748057818 /home/vtt/Desktop/SPI_DEV_servise/include/VT_sync_data_stream_interface.h
+	"stdint.h"
+
+1748604771 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_register_struct.h
+	"stdint.h"
+
+1748057815 /home/vtt/Desktop/SPI_DEV_servise/include/VT_SPI_stream.h
+	"stdint.h"
+	"VT_sync_data_stream_interface.h"
+	"SPI_DRIVER.h"
+
+1724340474 source:/home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lead.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1707268022 source:/home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1707255164 source:/home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_BIOZ.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1698857734 source:/home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_BIS.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1724340388 source:/home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_CALIBRATE.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1716193582 source:/home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_FIFO.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1698857734 source:/home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_MUX.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1698857734 source:/home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_lib_PLL.cpp
+	"max30009_lib.h"
+	"stdlib.h"
+	"math.h"
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise/hard_driver/GPIO_driver.h
+	<string>
+	<cstdint>
+	<iostream>
+	<gpiod.h>
+	"VT_GPIO_interface.h"
+
+1748059616 /home/vtt/Desktop/SPI_DEV_servise/hard_driver/VT_sync_data_stream_interface.h
+	"stdint.h"
+
+1748638936 /home/vtt/Desktop/SPI_DEV_servise/hard_driver/SPI_hard_driver.h
+	<stdio.h>
+	<fcntl.h>
+	<unistd.h>
+	<sys/ioctl.h>
+	<linux/spi/spidev.h>
+	"VT_sync_data_stream_interface.h"
+
+1749572143 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_data_struct.h
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise/VTK/VT_register_container.h
+	"stdint.h"
+	"VT_register_process_interface.h"
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise/VTK/VT_register_process_interface.h
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise/VTK/VT_sync_data_stream_interface.h
+	"stdint.h"
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise/VTK/VT_GPIO_interface.h
+	"stdint.h"
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise/MAX30009_LIB/max30009_ext_mux.h
+	"VT_GPIO_interface.h"
+
+1755304503 source:/home/vtt/Desktop/SPI_DEV_servise/src/MAX30009_process.cpp
+	"MAX30009_process.h"
+	<iomanip>
+	<ctime>
+
+1755305236 /home/vtt/Desktop/SPI_DEV_servise/include/MAX30009_process.h
+	"max30009_ext_mux.h"
+	<string>
+	<iostream>
+	"max30009_lib.h"
+	<vector>
+	"json.hpp"
+	"GPIO_driver.h"
+	"SPI_hard_driver.h"
+	<chrono>
+	<thread>
+	"max30009_ext_mux.h"
+	<fstream>
+	<filesystem>
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise/include/json.hpp
+	<algorithm>
+	<cstddef>
+	<functional>
+	<initializer_list>
+	<iosfwd>
+	<iterator>
+	<memory>
+	<string>
+	<utility>
+	<vector>
+	<utility>
+	<algorithm>
+	<array>
+	<forward_list>
+	<iterator>
+	<map>
+	<string>
+	<tuple>
+	<type_traits>
+	<unordered_map>
+	<utility>
+	<valarray>
+	<cstddef>
+	<exception>
+	<numeric>
+	<stdexcept>
+	<string>
+	<vector>
+	<array>
+	<cstddef>
+	<cstdint>
+	<string>
+	<utility>
+	<type_traits>
+	<stdint.h>
+	<stdint.h>
+	<version>
+	<cstdlib>
+	<cassert>
+	<compare>
+	<cstddef>
+	<array>
+	<cstddef>
+	<type_traits>
+	<utility>
+	<limits>
+	<string>
+	<tuple>
+	<type_traits>
+	<utility>
+	<cstddef>
+	<iterator>
+	<cstdint>
+	<map>
+	<memory>
+	<string>
+	<vector>
+	<cstring>
+	<string>
+	<utility>
+	<experimental/filesystem>
+	<filesystem>
+	<optional>
+	<string_view>
+	<optional>
+	<algorithm>
+	<iterator>
+	<memory>
+	<string>
+	<tuple>
+	<type_traits>
+	<utility>
+	<valarray>
+	<vector>
+	<cstddef>
+	<iterator>
+	<tuple>
+	<utility>
+	<ranges>
+	<cstddef>
+	<string>
+	<cstdint>
+	<tuple>
+	<utility>
+	<cstdint>
+	<cstddef>
+	<functional>
+	<algorithm>
+	<array>
+	<cmath>
+	<cstddef>
+	<cstdint>
+	<cstdio>
+	<cstring>
+	<iterator>
+	<limits>
+	<string>
+	<utility>
+	<vector>
+	<bit>
+	<array>
+	<cstddef>
+	<cstring>
+	<iterator>
+	<memory>
+	<numeric>
+	<string>
+	<type_traits>
+	<utility>
+	<cstdio>
+	<istream>
+	<cstddef>
+	<string>
+	<type_traits>
+	<utility>
+	<vector>
+	<array>
+	<clocale>
+	<cstddef>
+	<cstdio>
+	<cstdlib>
+	<initializer_list>
+	<string>
+	<utility>
+	<vector>
+	<cstdint>
+	<utility>
+	<string>
+	<cmath>
+	<cstdint>
+	<functional>
+	<string>
+	<utility>
+	<vector>
+	<cstddef>
+	<limits>
+	<iterator>
+	<type_traits>
+	<cstddef>
+	<iterator>
+	<utility>
+	<type_traits>
+	<algorithm>
+	<cctype>
+	<cerrno>
+	<cstdlib>
+	<iosfwd>
+	<limits>
+	<numeric>
+	<string>
+	<utility>
+	<vector>
+	<initializer_list>
+	<utility>
+	<algorithm>
+	<array>
+	<map>
+	<cmath>
+	<cstdint>
+	<cstring>
+	<limits>
+	<string>
+	<utility>
+	<vector>
+	<algorithm>
+	<cstddef>
+	<iterator>
+	<memory>
+	<string>
+	<vector>
+	<ios>
+	<ostream>
+	<algorithm>
+	<array>
+	<clocale>
+	<cmath>
+	<cstddef>
+	<cstdint>
+	<cstdio>
+	<limits>
+	<string>
+	<iomanip>
+	<type_traits>
+	<utility>
+	<array>
+	<cmath>
+	<cstdint>
+	<cstring>
+	<limits>
+	<type_traits>
+	<functional>
+	<initializer_list>
+	<iterator>
+	<memory>
+	<stdexcept>
+	<type_traits>
+	<utility>
+	<vector>
+	<any>
+	<string_view>
+
+1748151108 /home/vtt/Desktop/SPI_DEV_servise//MAX30009_LIB/max30009_lib.h
+	"VT_sync_data_stream_interface.h"
+	"max30009_register_struct.h"
+	"stdint.h"
+	"max30009_data_struct.h"
+	"stdlib.h"
+	"math.h"
+
+1748151814 /home/vtt/Desktop/SPI_DEV_servise//MAX30009_LIB/max30009_register_struct.h
+	"stdint.h"
+
+1748151200 /home/vtt/Desktop/SPI_DEV_servise//MAX30009_LIB/max30009_data_struct.h
+
+1755305236 /home/vtt/Desktop/SPI_DEV_servise/include/ADS1293_process.h
+	<string>
+	<iostream>
+	<vector>
+
+1755304669 source:/home/vtt/Desktop/SPI_DEV_servise/src/ADS1293_process.cpp
+	"ADS1293_process.h"
+	"json.hpp"
+	"ADS1293_LIB.h"
+	"GPIO_driver.h"
+	"SPI_hard_driver.h"
+	<chrono>
+	<thread>
+
+1748623290 /home/vtt/Desktop/SPI_DEV_servise//ADS1293_LIB/ADS1293_LIB.h
+	"stdint.h"
+	"VT_register_container.h"
+	"ADS1293_register_map.h"
+	"ADS1293_IO.h"
+	"VT_sync_data_stream_interface.h"
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise//ADS1293_LIB/ADS1293_register_map.h
+
+1748318016 /home/vtt/Desktop/SPI_DEV_servise//ADS1293_LIB/ADS1293_IO.h
+	"stdint.h"
+	"VT_register_process_interface.h"
+	"VT_sync_data_stream_interface.h"
+
+1749570073 /home/vtt/Desktop/SPI_DEV_servise/include/JSON_TCP_sever.h
+	<iostream>
+	<sys/socket.h>
+	<netinet/in.h>
+	<unistd.h>
+	<arpa/inet.h>
+	<cstring>
+	<atomic>
+	<string>
+	<thread>
+	<chrono>
+	<poll.h>
+
+1729359607 source:/home/vtt/Desktop/SPI_DEV_servise/WS281x/dma.c
+	<stdint.h>
+	<stdio.h>
+	<string.h>
+	<stdlib.h>
+	<unistd.h>
+	<sys/types.h>
+	<sys/stat.h>
+	<sys/mman.h>
+	"dma.h"
+
+1729359607 /home/vtt/Desktop/SPI_DEV_servise/WS281x/dma.h
+	<stdint.h>
+
+1729359607 source:/home/vtt/Desktop/SPI_DEV_servise/WS281x/mailbox.c
+	<stdio.h>
+	<string.h>
+	<stdlib.h>
+	<fcntl.h>
+	<unistd.h>
+	<assert.h>
+	<stdint.h>
+	<errno.h>
+	<unistd.h>
+	<sys/mman.h>
+	<sys/ioctl.h>
+	<sys/sysmacros.h>
+	<sys/stat.h>
+	"mailbox.h"
+
+1729359607 /home/vtt/Desktop/SPI_DEV_servise/WS281x/mailbox.h
+	<linux/ioctl.h>
+
+1729359607 source:/home/vtt/Desktop/SPI_DEV_servise/WS281x/pcm.c
+	<stdint.h>
+	"pcm.h"
+
+1729359607 /home/vtt/Desktop/SPI_DEV_servise/WS281x/pcm.h
+	<stdint.h>
+
+1729359607 source:/home/vtt/Desktop/SPI_DEV_servise/WS281x/pwm.c
+	<stdint.h>
+	"ws2811.h"
+	"pwm.h"
+
+1729359607 /home/vtt/Desktop/SPI_DEV_servise/WS281x/ws2811.h
+	<stdint.h>
+	"rpihw.h"
+	"pwm.h"
+
+1729359607 /home/vtt/Desktop/SPI_DEV_servise/WS281x/rpihw.h
+	<stdint.h>
+
+1729359607 /home/vtt/Desktop/SPI_DEV_servise/WS281x/pwm.h
+	<stdint.h>
+
+1729359607 source:/home/vtt/Desktop/SPI_DEV_servise/WS281x/rpihw.c
+	<stdint.h>
+	<stdio.h>
+	<string.h>
+	<stdlib.h>
+	<errno.h>
+	<byteswap.h>
+	"rpihw.h"
+
+1729359607 source:/home/vtt/Desktop/SPI_DEV_servise/WS281x/ws2811.c
+	<stdint.h>
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<unistd.h>
+	<sys/stat.h>
+	<fcntl.h>
+	<sys/ioctl.h>
+	<sys/mman.h>
+	<signal.h>
+	<linux/types.h>
+	<linux/spi/spidev.h>
+	<time.h>
+	<math.h>
+	"mailbox.h"
+	"clk.h"
+	"gpio.h"
+	"dma.h"
+	"pwm.h"
+	"pcm.h"
+	"rpihw.h"
+	"ws2811.h"
+
+1729359607 /home/vtt/Desktop/SPI_DEV_servise/WS281x/clk.h
+	<stdint.h>
+
+1729359607 /home/vtt/Desktop/SPI_DEV_servise/WS281x/gpio.h
+	<stdint.h>
+
+1749595800 /home/vtt/Desktop/SPI_DEV_servise/include/WS2812_wrap_cls.h
+	"ws2811.h"
+
+1749594280 /home/vtt/Desktop/SPI_DEV_servise/include/WS2812_process.h
+	"WS2812_wrap_cls.h"
+	"json.hpp"
+

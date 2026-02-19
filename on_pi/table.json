@@ -1,0 +1,7 @@
+
+    {
+        "frequency_points_count": 17,
+        "frequency_points_hz": [25,100,200,500,1000,5000,10000,20000,50000,100000,150000,200000,250000,300000,350000,400000,450000],
+        "current_points_count": 1,
+        "current_points": [["1.28mA","x2"]]
+    }

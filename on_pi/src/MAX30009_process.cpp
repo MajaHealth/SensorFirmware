@@ -45,8 +45,7 @@ void MAX30009_process::init()
 
     // Drive electrode lead-off detection defaults (simple software threshold)
     MAX30009_user_sett.enable_drive_leadoff = false;  // Disabled by default
-    MAX30009_user_sett.leadoff_threshold_ohms = 500.0;  // HIGH threshold - above = disconnected
-    MAX30009_user_sett.leadoff_low_threshold_ohms = 5.0;  // LOW threshold - below = short/error
+    MAX30009_user_sett.leadoff_threshold_ohms = 500.0;  // 500Ω threshold
 }
 
 MAX30009_CALIB_DATA  MAX30009_process::get_calib_koef_from_file(const std::string& filename)
@@ -500,10 +499,6 @@ std::string MAX30009_process::process_JSON_line(const char * JSON_line)
                 {
                     MAX30009_user_sett.leadoff_threshold_ohms = parsed_json["leadoff_threshold_ohms"];
                 }
-                if (parsed_json.contains("leadoff_low_threshold_ohms"))
-                {
-                    MAX30009_user_sett.leadoff_low_threshold_ohms = parsed_json["leadoff_low_threshold_ohms"];
-                }
 
                 process_ext_MUX_settings_for_MAX30009();
                 process_all_settings_for_MAX30009();
@@ -585,7 +580,6 @@ std::string MAX30009_process::get_all_settings_as_json(void)
     // Drive electrode lead-off detection settings (software threshold)
     response_json["enable_drive_leadoff"] = MAX30009_user_sett.enable_drive_leadoff;
     response_json["leadoff_threshold_ohms"] = MAX30009_user_sett.leadoff_threshold_ohms;
-    response_json["leadoff_low_threshold_ohms"] = MAX30009_user_sett.leadoff_low_threshold_ohms;
 
     return response_json.dump();
 }
@@ -1099,22 +1093,40 @@ std::string MAX30009_process::get_leadoff_status_as_json()
 
 void MAX30009_process::check_drive_leadoff()
 {
-    // Calculate impedance (already done for other purposes)
     if (_IFIFO_write_pos == 0) return;
 
-    uint32_t latest_pos = (_IFIFO_write_pos - 1) % _max_IFIFO_size;
-    int32_t I_val = _IFIFO_BUF[latest_pos].I_data;
-    int32_t Q_val = _IFIFO_BUF[latest_pos].Q_data;
+    // Average last N samples (like get_data's decimation) for stability
+    const uint32_t NUM_SAMPLES = 32;
+    int64_t sum_I = 0, sum_Q = 0;
+    uint32_t count = 0;
 
-    // Get calibration coefficients - stimulate_frequency IS the index (0-16)
+    // Read backwards from latest (non-destructive - doesn't move _IFIFO_read_pos)
+    uint32_t pos = _IFIFO_write_pos;
+    for (uint32_t i = 0; i < NUM_SAMPLES; i++) {
+        // Skip sync marks (I_data == SYNC_MARK_MAGIC_NUM)
+        if (_IFIFO_BUF[pos].I_data != SYNC_MARK_MAGIC_NUM) {
+            sum_I += _IFIFO_BUF[pos].I_data;
+            sum_Q += _IFIFO_BUF[pos].Q_data;
+            count++;
+        }
+        pos = (pos - 1 + _max_IFIFO_size) % _max_IFIFO_size;
+    }
+
+    if (count == 0) return;
+
+    int32_t avg_I = sum_I / count;
+    int32_t avg_Q = sum_Q / count;
+
+    // FIXED: Use stimulate_frequency directly as index (same as get_data path)
+    // stimulate_frequency IS the index into FREQ_POINTS[], not a frequency value
     MAX30009_CALIB_DATA coef = _calibrate_data[MAX30009_user_sett.stimulate_current_select][MAX30009_user_sett.stimulate_frequency];
 
-    // Apply full calibration
+    // Apply calibration to averaged values
     MAX30009_FIFO_DATA I_ch_data, Q_ch_data;
     I_ch_data.data_source = MAX30009_I_CHANNEL;
-    I_ch_data.channel_value = I_val;
+    I_ch_data.channel_value = avg_I;
     Q_ch_data.data_source = MAX30009_Q_CHANNEL;
-    Q_ch_data.channel_value = Q_val;
+    Q_ch_data.channel_value = avg_Q;
 
     MAX30009.calculate_impendance(&I_ch_data, coef);
     MAX30009.calculate_impendance(&Q_ch_data, coef);
@@ -1124,23 +1136,10 @@ void MAX30009_process::check_drive_leadoff()
 
     double impedance = calibrated.Load_mag;
 
-    // Dual threshold detection:
-    // - impedance > HIGH threshold = open circuit (electrode disconnected)
-    // - impedance < LOW threshold = short circuit (electrode error)
-    // Both cases indicate lead-off condition
-    DRIVE_LEAD_STATUS_ENUM new_status;
-    const char* reason = "";
-
-    if (impedance > MAX30009_user_sett.leadoff_threshold_ohms) {
-        new_status = DRIVE_LEAD_OFF;
-        reason = "HIGH (open circuit)";
-    } else if (impedance < MAX30009_user_sett.leadoff_low_threshold_ohms) {
-        new_status = DRIVE_LEAD_OFF;
-        reason = "LOW (short circuit)";
-    } else {
-        new_status = DRIVE_LEAD_ON;
-        reason = "normal";
-    }
+    // Simple Z threshold detection (per datasheet recommendation)
+    DRIVE_LEAD_STATUS_ENUM new_status =
+        (impedance > MAX30009_user_sett.leadoff_threshold_ohms) ?
+        DRIVE_LEAD_OFF : DRIVE_LEAD_ON;
 
     // Software debounce (3 consecutive reads)
     if (new_status == _drive_lead_status_prev) {
@@ -1155,10 +1154,8 @@ void MAX30009_process::check_drive_leadoff()
             std::cout << "========================================" << std::endl;
             std::cout << "DRIVE LEAD STATUS CHANGE" << std::endl;
             std::cout << "Impedance: " << std::fixed << std::setprecision(1) << impedance << "Ω"
-                      << " (range: " << MAX30009_user_sett.leadoff_low_threshold_ohms << "-"
-                      << MAX30009_user_sett.leadoff_threshold_ohms << "Ω)" << std::endl;
-            std::cout << "Status: " << (new_status == DRIVE_LEAD_ON ? "CONNECTED" : "DISCONNECTED")
-                      << " (" << reason << ")" << std::endl;
+                      << " (threshold: " << MAX30009_user_sett.leadoff_threshold_ohms << "Ω)" << std::endl;
+            std::cout << "Status: " << (new_status == DRIVE_LEAD_ON ? "CONNECTED" : "DISCONNECTED") << std::endl;
             std::cout << "========================================" << std::endl << std::endl;
         }
     } else {
@@ -1168,11 +1165,10 @@ void MAX30009_process::check_drive_leadoff()
 
     // Debug output every 1s
     std::cout << "LOD: Z=" << std::fixed << std::setprecision(1)
-              << impedance << "Ω [" << MAX30009_user_sett.leadoff_low_threshold_ohms
-              << "-" << MAX30009_user_sett.leadoff_threshold_ohms << "] | "
-              << reason << " | Status="
+              << impedance << "Ω | Status="
               << (new_status == DRIVE_LEAD_ON ? "CONNECTED" : "DISCONNECTED")
               << " (debounce=" << (int)_drive_leadoff_debounce_count << "/3)"
+              << " [avg of " << count << " samples]"
               << std::endl;
 }
 
@@ -1182,35 +1178,54 @@ std::string MAX30009_process::get_drive_leadoff_status_as_json()
     response["type"] = "drive_leadoff_status";
     response["timestamp"] = get_timestamp_string();
     response["enabled"] = MAX30009_user_sett.enable_drive_leadoff;
-    response["threshold_high_ohms"] = MAX30009_user_sett.leadoff_threshold_ohms;
-    response["threshold_low_ohms"] = MAX30009_user_sett.leadoff_low_threshold_ohms;
+    response["threshold_ohms"] = MAX30009_user_sett.leadoff_threshold_ohms;
 
-    // Calculate current impedance
+    // Calculate current impedance using averaged samples (same as check_drive_leadoff)
     double impedance_ohms = 0.0;
+    uint32_t sample_count = 0;
+
     if (_IFIFO_write_pos > 0) {
-        uint32_t latest_pos = (_IFIFO_write_pos - 1) % _max_IFIFO_size;
-        int32_t I_val = _IFIFO_BUF[latest_pos].I_data;
-        int32_t Q_val = _IFIFO_BUF[latest_pos].Q_data;
+        // Average last N samples for stability (same as check_drive_leadoff)
+        const uint32_t NUM_SAMPLES = 32;
+        int64_t sum_I = 0, sum_Q = 0;
 
-        // stimulate_frequency IS the index (0-16)
-        MAX30009_CALIB_DATA coef = _calibrate_data[MAX30009_user_sett.stimulate_current_select][MAX30009_user_sett.stimulate_frequency];
+        // Read backwards from latest (non-destructive)
+        uint32_t pos = _IFIFO_write_pos;
+        for (uint32_t i = 0; i < NUM_SAMPLES; i++) {
+            // Skip sync marks
+            if (_IFIFO_BUF[pos].I_data != SYNC_MARK_MAGIC_NUM) {
+                sum_I += _IFIFO_BUF[pos].I_data;
+                sum_Q += _IFIFO_BUF[pos].Q_data;
+                sample_count++;
+            }
+            pos = (pos - 1 + _max_IFIFO_size) % _max_IFIFO_size;
+        }
 
-        MAX30009_FIFO_DATA I_ch_data, Q_ch_data;
-        I_ch_data.data_source = MAX30009_I_CHANNEL;
-        I_ch_data.channel_value = I_val;
-        Q_ch_data.data_source = MAX30009_Q_CHANNEL;
-        Q_ch_data.channel_value = Q_val;
+        if (sample_count > 0) {
+            int32_t avg_I = sum_I / sample_count;
+            int32_t avg_Q = sum_Q / sample_count;
 
-        MAX30009.calculate_impendance(&I_ch_data, coef);
-        MAX30009.calculate_impendance(&Q_ch_data, coef);
+            // FIXED: Use stimulate_frequency directly as index (same as get_data path)
+            MAX30009_CALIB_DATA coef = _calibrate_data[MAX30009_user_sett.stimulate_current_select][MAX30009_user_sett.stimulate_frequency];
 
-        MAX30009_FIFO_DATA_CALIB_TYPE calibrated =
-            MAX30009.calibrate_FIFO_data(I_ch_data, Q_ch_data, coef);
+            MAX30009_FIFO_DATA I_ch_data, Q_ch_data;
+            I_ch_data.data_source = MAX30009_I_CHANNEL;
+            I_ch_data.channel_value = avg_I;
+            Q_ch_data.data_source = MAX30009_Q_CHANNEL;
+            Q_ch_data.channel_value = avg_Q;
 
-        impedance_ohms = calibrated.Load_mag;
+            MAX30009.calculate_impendance(&I_ch_data, coef);
+            MAX30009.calculate_impendance(&Q_ch_data, coef);
+
+            MAX30009_FIFO_DATA_CALIB_TYPE calibrated =
+                MAX30009.calibrate_FIFO_data(I_ch_data, Q_ch_data, coef);
+
+            impedance_ohms = calibrated.Load_mag;
+        }
     }
 
     response["impedance_ohms"] = impedance_ohms;
+    response["sample_count"] = sample_count;
     response["status"] = (_drive_lead_status == DRIVE_LEAD_ON) ? "connected" : "disconnected";
     response["debounce_count"] = _drive_leadoff_debounce_count;
 

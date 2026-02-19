@@ -51,8 +51,7 @@ typedef struct MAX30009_USER_SETTINGS
 
     // Drive electrode lead-off detection (simple software threshold)
     bool enable_drive_leadoff;              // Enable drive electrode detection
-    double leadoff_threshold_ohms;          // HIGH threshold in Ω (default 500Ω) - above = disconnected
-    double leadoff_low_threshold_ohms;      // LOW threshold in Ω (default 5Ω) - below = short/error
+    double leadoff_threshold_ohms;          // Impedance threshold in Ω (default 500Ω)
 
 } MAX30009_USER_SETTINGS_TDE;
 
