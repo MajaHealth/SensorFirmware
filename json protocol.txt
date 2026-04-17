@@ -63,3 +63,13 @@ BUTTON PRESS
 
 false - click once - true 
 false - long press - false
+
+
+.............
+
+Build Commands
+
+gcc -c WS281x/*.c -IWS281x && \
+g++ -std=c++17 -O2 -Wall -fexceptions main.cpp src/*.cpp *.o \
+-Iinclude -Ihard_driver -IVTK -IMAX30009_LIB -IADS1293_LIB -IWS281x \
+-lgpiod -lfltk -o Release/SPI_DEV_servise

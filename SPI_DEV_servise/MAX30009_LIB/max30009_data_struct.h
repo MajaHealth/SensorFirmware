@@ -99,6 +99,61 @@ typedef struct MAX30009_STATUS_STRUCT
 
 }MAX30009_STATUS_STRUCT_TYPE;
 
+const uint8_t MAX30009_LEAD_MASK_EL1_DRVP=0x01;
+const uint8_t MAX30009_LEAD_MASK_EL2B_BIP=0x02;
+const uint8_t MAX30009_LEAD_MASK_EL3B_BIN=0x04;
+const uint8_t MAX30009_LEAD_MASK_EL4_DRVN=0x08;
+
+typedef enum MAX30009_LEAD_CONFIDENCE_ENUM
+{
+    MAX30009_LEAD_CONNECTED=0,
+    MAX30009_LEAD_DEFINITE_OFF,
+    MAX30009_LEAD_PROBABLE_OFF,
+    MAX30009_LEAD_AMBIGUOUS,
+}MAX30009_LEAD_CONFIDENCE_ENUM_TYPE;
+
+typedef struct MAX30009_PASSIVE_LEAD_MONITOR_CONFIG
+{
+    bool enable;
+    uint8_t loff_imag;
+    uint8_t loff_thresh;
+    bool loff_ipol;
+    bool loff_rapid;
+    uint8_t bioz_cmp;
+    uint8_t bioz_low_thresh;
+    uint8_t bioz_high_thresh;
+    uint8_t debounce_count;
+}MAX30009_PASSIVE_LEAD_MONITOR_CONFIG_TYPE;
+
+typedef struct MAX30009_PASSIVE_LEAD_MONITOR_STATUS
+{
+    bool active;
+    bool raw_bip_high;
+    bool raw_bip_low;
+    bool raw_bin_high;
+    bool raw_bin_low;
+    bool raw_drv_oor;
+    bool raw_bioz_over;
+    bool raw_bioz_under;
+
+    bool el2b_bip_off;
+    bool el3b_bin_off;
+    bool current_leads_invalid;
+    bool drive_path_fault;
+    bool drive_compliance_warning;
+    bool probable_el1_drvp_off;
+    bool probable_el4_drvn_off;
+    bool ambiguous;
+
+    uint8_t disconnected_mask;
+    uint8_t possible_disconnected_mask;
+
+    MAX30009_LEAD_CONFIDENCE_ENUM_TYPE el1_drvp_confidence;
+    MAX30009_LEAD_CONFIDENCE_ENUM_TYPE el2b_bip_confidence;
+    MAX30009_LEAD_CONFIDENCE_ENUM_TYPE el3b_bin_confidence;
+    MAX30009_LEAD_CONFIDENCE_ENUM_TYPE el4_drvn_confidence;
+}MAX30009_PASSIVE_LEAD_MONITOR_STATUS_TYPE;
+
 typedef struct MAX30009_FIND_CLOCKS_STRUCT
 {
     uint32_t solution_count;

@@ -24,6 +24,23 @@ max30009_ext_MUX max30009_ext_MUX_obj(MUX_GPIOs);
 SPI_hard_driver_cls SPI_MAX30009_driver("/dev/spidev0.0");
 MAX30009_LIB MAX30009(&SPI_MAX30009_driver);
 
+static const char * max30009_lead_confidence_to_string(MAX30009_LEAD_CONFIDENCE_ENUM_TYPE confidence)
+{
+    switch (confidence)
+    {
+    case MAX30009_LEAD_CONNECTED:
+        return "connected";
+    case MAX30009_LEAD_DEFINITE_OFF:
+        return "definite_off";
+    case MAX30009_LEAD_PROBABLE_OFF:
+        return "probable_off";
+    case MAX30009_LEAD_AMBIGUOUS:
+        return "ambiguous";
+    default:
+        return "unknown";
+    }
+}
+
 MAX30009_process::MAX30009_process()
 {
 
@@ -49,7 +66,10 @@ void MAX30009_process::process()
     if (now - _last_status_time >std::chrono::milliseconds(200))
     {
         _last_status_time=now;
-        MAX30009.read_status(&status);
+        if (MAX30009.read_status(&status)==true)
+        {
+            update_passive_lead_monitor(status);
+        }
     }
 
 
@@ -58,6 +78,108 @@ void MAX30009_process::process()
 
     check_FIFO_buffer();
 
+}
+
+bool MAX30009_process::update_debounced_flag(bool raw_value, uint8_t &counter, bool &debounced_value)
+{
+    if (raw_value)
+    {
+        if (counter < LEAD_MONITOR_DEBOUNCE_COUNT)
+        {
+            counter++;
+        }
+    }
+    else
+    {
+        counter=0;
+    }
+
+    debounced_value=(counter>=LEAD_MONITOR_DEBOUNCE_COUNT);
+    return debounced_value;
+}
+
+void MAX30009_process::reset_passive_lead_monitor(void)
+{
+    _lead_status=MAX30009_PASSIVE_LEAD_MONITOR_STATUS_TYPE{};
+    _lead_status.active=_lead_monitor_active;
+    _lead_status.el1_drvp_confidence=MAX30009_LEAD_CONNECTED;
+    _lead_status.el2b_bip_confidence=MAX30009_LEAD_CONNECTED;
+    _lead_status.el3b_bin_confidence=MAX30009_LEAD_CONNECTED;
+    _lead_status.el4_drvn_confidence=MAX30009_LEAD_CONNECTED;
+
+    _lead_bip_high_counter=0;
+    _lead_bip_low_counter=0;
+    _lead_bin_high_counter=0;
+    _lead_bin_low_counter=0;
+    _lead_drv_oor_counter=0;
+    _lead_bioz_over_counter=0;
+    _lead_bioz_under_counter=0;
+}
+
+void MAX30009_process::update_passive_lead_monitor(const MAX30009_STATUS_STRUCT_TYPE &new_status)
+{
+    if (_lead_monitor_active==false || _meas_mode!=MMD_MEASURING)
+    {
+        if (_lead_status.active==true)
+        {
+            _lead_monitor_active=false;
+            reset_passive_lead_monitor();
+        }
+        return;
+    }
+
+    _lead_status.active=true;
+
+    update_debounced_flag(new_status.DC_LOFF_BIP_overlimit, _lead_bip_high_counter, _lead_status.raw_bip_high);
+    update_debounced_flag(new_status.DC_LOFF_BIP_underlimit, _lead_bip_low_counter, _lead_status.raw_bip_low);
+    update_debounced_flag(new_status.DC_LOFF_BIN_overlimit, _lead_bin_high_counter, _lead_status.raw_bin_high);
+    update_debounced_flag(new_status.DC_LOFF_BIN_underlimit, _lead_bin_low_counter, _lead_status.raw_bin_low);
+    update_debounced_flag(new_status.DRVN_out_of_range, _lead_drv_oor_counter, _lead_status.raw_drv_oor);
+    update_debounced_flag(new_status.BIOZ_over_level, _lead_bioz_over_counter, _lead_status.raw_bioz_over);
+    update_debounced_flag(new_status.BIOZ_under_level, _lead_bioz_under_counter, _lead_status.raw_bioz_under);
+
+    const bool bip_off=(_lead_status.raw_bip_high || _lead_status.raw_bip_low);
+    const bool bin_off=(_lead_status.raw_bin_high || _lead_status.raw_bin_low);
+    const bool sense_fault=(bip_off || bin_off);
+    const bool ac_lead_off=(_lead_status.raw_bioz_over || _lead_status.raw_bioz_under);
+    const bool current_leads_invalid=(ac_lead_off && (!sense_fault || _lead_status.raw_drv_oor));
+
+    _lead_status.el2b_bip_off=bip_off;
+    _lead_status.el3b_bin_off=bin_off;
+    _lead_status.current_leads_invalid=current_leads_invalid;
+    _lead_status.drive_path_fault=current_leads_invalid;
+    _lead_status.drive_compliance_warning=(_lead_status.raw_drv_oor && !ac_lead_off);
+    _lead_status.probable_el1_drvp_off=false;
+    _lead_status.probable_el4_drvn_off=false;
+    _lead_status.ambiguous=current_leads_invalid;
+
+    _lead_status.disconnected_mask=0;
+    _lead_status.possible_disconnected_mask=0;
+
+    _lead_status.el1_drvp_confidence=MAX30009_LEAD_CONNECTED;
+    _lead_status.el2b_bip_confidence=MAX30009_LEAD_CONNECTED;
+    _lead_status.el3b_bin_confidence=MAX30009_LEAD_CONNECTED;
+    _lead_status.el4_drvn_confidence=MAX30009_LEAD_CONNECTED;
+
+    if (bip_off)
+    {
+        _lead_status.disconnected_mask|=MAX30009_LEAD_MASK_EL2B_BIP;
+        _lead_status.possible_disconnected_mask|=MAX30009_LEAD_MASK_EL2B_BIP;
+        _lead_status.el2b_bip_confidence=MAX30009_LEAD_DEFINITE_OFF;
+    }
+    if (bin_off)
+    {
+        _lead_status.disconnected_mask|=MAX30009_LEAD_MASK_EL3B_BIN;
+        _lead_status.possible_disconnected_mask|=MAX30009_LEAD_MASK_EL3B_BIN;
+        _lead_status.el3b_bin_confidence=MAX30009_LEAD_DEFINITE_OFF;
+    }
+
+    if (current_leads_invalid)
+    {
+        _lead_status.possible_disconnected_mask|=(MAX30009_LEAD_MASK_EL1_DRVP | MAX30009_LEAD_MASK_EL4_DRVN);
+        _lead_status.el1_drvp_confidence=MAX30009_LEAD_AMBIGUOUS;
+        _lead_status.el4_drvn_confidence=MAX30009_LEAD_AMBIGUOUS;
+    }
 }
 
 void MAX30009_process::check_FIFO_buffer(void)
@@ -192,6 +314,7 @@ std::string MAX30009_process::measure_process(void)
         start_data.bioz_total_gain=_work_gain;
         // start_data.bioz_total_gain=MAX30009_BIOZ_TOTAL_GAIN_2;
         start_data.stimulate_current=MAXsett.get_set().stimulate_current;
+        start_data.passive_lead_monitor_enable=true;
 
         start_measure_MAX30009(start_data);
         MAXsett.update_real_gain(start_data.bioz_total_gain);
@@ -307,6 +430,58 @@ std::string MAX30009_process::calibration_process(void)
 
 }
 
+std::string MAX30009_process::get_lead_status_as_json(void)
+{
+    nlohmann::json response_json;
+    response_json["type"]="lead_status";
+    response_json["active"]=_lead_status.active;
+    response_json["timestamp"]=MAX30009_STATIC::get_timestamp_string();
+    response_json["debounce_samples"]=LEAD_MONITOR_DEBOUNCE_COUNT;
+
+    nlohmann::json config_json;
+    config_json["enabled_after_final_calibration"]=_lead_status.active;
+    config_json["loff_imag"]=LEAD_MONITOR_LOFF_IMAG;
+    config_json["loff_thresh"]=LEAD_MONITOR_LOFF_THRESH;
+    config_json["loff_ipol"]=0;
+    config_json["loff_rapid"]=false;
+    config_json["bioz_cmp"]=LEAD_MONITOR_BIOZ_CMP;
+    config_json["bioz_low_thresh"]=LEAD_MONITOR_BIOZ_LO_THRESH;
+    config_json["bioz_high_thresh"]=LEAD_MONITOR_BIOZ_HI_THRESH;
+    response_json["config"]=config_json;
+
+    nlohmann::json raw_json;
+    raw_json["bip_high"]=_lead_status.raw_bip_high;
+    raw_json["bip_low"]=_lead_status.raw_bip_low;
+    raw_json["bin_high"]=_lead_status.raw_bin_high;
+    raw_json["bin_low"]=_lead_status.raw_bin_low;
+    raw_json["drv_oor"]=_lead_status.raw_drv_oor;
+    raw_json["bioz_over"]=_lead_status.raw_bioz_over;
+    raw_json["bioz_under"]=_lead_status.raw_bioz_under;
+    response_json["raw"]=raw_json;
+
+    nlohmann::json derived_json;
+    derived_json["el2b_bip_off"]=_lead_status.el2b_bip_off;
+    derived_json["el3b_bin_off"]=_lead_status.el3b_bin_off;
+    derived_json["current_leads_invalid"]=_lead_status.current_leads_invalid;
+    derived_json["drive_path_fault"]=_lead_status.drive_path_fault;
+    derived_json["drive_compliance_warning"]=_lead_status.drive_compliance_warning;
+    derived_json["probable_el1_drvp_off"]=_lead_status.probable_el1_drvp_off;
+    derived_json["probable_el4_drvn_off"]=_lead_status.probable_el4_drvn_off;
+    derived_json["ambiguous"]=_lead_status.ambiguous;
+    derived_json["disconnected_mask"]=_lead_status.disconnected_mask;
+    derived_json["possible_disconnected_mask"]=_lead_status.possible_disconnected_mask;
+    response_json["derived"]=derived_json;
+
+    nlohmann::json confidence_json;
+    confidence_json["el1_drvp"]=max30009_lead_confidence_to_string(_lead_status.el1_drvp_confidence);
+    confidence_json["el2b_bip"]=max30009_lead_confidence_to_string(_lead_status.el2b_bip_confidence);
+    confidence_json["el3b_bin"]=max30009_lead_confidence_to_string(_lead_status.el3b_bin_confidence);
+    confidence_json["el4_drvn"]=max30009_lead_confidence_to_string(_lead_status.el4_drvn_confidence);
+    response_json["confidence"]=confidence_json;
+
+    return response_json.dump();
+}
+
 
 
 
@@ -348,6 +523,10 @@ std::string MAX30009_process::process_JSON_line(const char * JSON_line)
                 if(_meas_mode!=MMD_MEASURING) return "{\"type\":\"no_measure\"}";
                 return MAXdata.get_data_as_json(_work_calib_data,MAX30009.get_BIOZ_data());
             }
+            if (command_type == "get_lead_status")
+            {
+                return get_lead_status_as_json();
+            }
             if (command_type == "build_base_table")
             {
                 start_build_calibrate_table();
@@ -355,6 +534,8 @@ std::string MAX30009_process::process_JSON_line(const char * JSON_line)
             }
             if (command_type == "poweroff")
             {
+                _lead_monitor_active=false;
+                reset_passive_lead_monitor();
                 set_power_state(false);
                 max30009_ext_MUX_obj.off_all_out();
                 return "{\"type\":\"power_is_off\"}";
@@ -416,7 +597,7 @@ MAX30009_START_MEASURE_DATA_TDS & MAX30009_process::start_measure_MAX30009(MAX30
     MAX30009.set_BIOZ_amplifier_bandwidth(MAX30009_BIOZ_AMPLF_MODE_HIGH);
 
 
-    MAX30009.set_ext_capacitor_state(true);
+    MAX30009.set_ext_capacitor_state(false);
     MAX30009.set_BIOZ_DC_restore(true);
     MAX30009.set_EN_DRV_OOR(true);
     MAX30009.set_MUX_EN_INT_INLOAD(true);
@@ -466,6 +647,35 @@ MAX30009_START_MEASURE_DATA_TDS & MAX30009_process::start_measure_MAX30009(MAX30
     start_data.stimulate_frequency_hz = MAX30009.get_all_frequency().BIOZ_DRIVE_FREQ/10;
     start_data.stimulate_current = MAX30009.get_BIOZ_data().current_select;
 
+    _lead_monitor_active=start_data.passive_lead_monitor_enable;
+    reset_passive_lead_monitor();
+
+    MAX30009.set_EN_LON_DET(false);
+    MAX30009.set_LOFF_RAPID(false);
+    MAX30009.set_EN_EXT_LOFF(false);
+
+    if (start_data.passive_lead_monitor_enable==true)
+    {
+        MAX30009.set_EN_LOFF_DET(false);
+        MAX30009.set_EN_BIOZ_THRESH(false);
+
+        MAX30009.set_LOFF_IPOL(false);
+        MAX30009.set_LOFF_IMAG(LEAD_MONITOR_LOFF_IMAG);
+        MAX30009.set_LOFF_THRESH(LEAD_MONITOR_LOFF_THRESH);
+
+        MAX30009.set_BIOZ_CMP(LEAD_MONITOR_BIOZ_CMP);
+        MAX30009.set_BIOZ_LO_THRESH(LEAD_MONITOR_BIOZ_LO_THRESH);
+        MAX30009.set_BIOZ_HI_THRESH(LEAD_MONITOR_BIOZ_HI_THRESH);
+
+        MAX30009.set_EN_DRV_OOR(true);
+        MAX30009.set_EN_LOFF_DET(true);
+        MAX30009.set_EN_BIOZ_THRESH(true);
+    }
+    else
+    {
+        MAX30009.set_EN_LOFF_DET(false);
+        MAX30009.set_EN_BIOZ_THRESH(false);
+    }
 
     MAX30009.set_PLL_state(true);
     MAX30009.set_BIOZ_I_channel_state(true);
@@ -481,6 +691,11 @@ MAX30009_START_MEASURE_DATA_TDS & MAX30009_process::start_measure_MAX30009(MAX30
 
 void  MAX30009_process::stop_measure_MAX30009(void)
 {
+    _lead_monitor_active=false;
+    reset_passive_lead_monitor();
+    MAX30009.set_EN_LOFF_DET(false);
+    MAX30009.set_EN_BIOZ_THRESH(false);
+    MAX30009.set_EN_LON_DET(false);
     MAX30009.set_PLL_state(false);
     MAX30009.set_BIOZ_I_channel_state(false);
     MAX30009.set_BIOZ_Q_channel_state(false);

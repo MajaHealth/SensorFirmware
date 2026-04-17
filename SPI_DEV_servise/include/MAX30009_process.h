@@ -45,6 +45,7 @@ typedef struct MAX30009_START_MEASURE_DATA
 
     MAX30009_BIOZ_TOTAL_GAIN_ENUM_TYPE bioz_total_gain;
     MAX30009_CURRENT_AMP_ENUM_TYPE  stimulate_current;
+    bool passive_lead_monitor_enable=false;
 
 } MAX30009_START_MEASURE_DATA_TDS;
 
@@ -96,6 +97,7 @@ public:
     std::string get_calibration_json_data(MAX30009_CALIB_DATA calib_koef);
 
     void set_power_state(bool state);
+    std::string get_lead_status_as_json(void);
 
 protected:
 
@@ -104,6 +106,17 @@ private:
     MAX30009_BIOZ_TOTAL_GAIN_ENUM_TYPE  get_auto_gain(int32_t pre_measure_imp,MAX30009_CURRENT_AMP_ENUM_TYPE current);
     void autotest_process(void);
     void start_autotest(void);
+    void reset_passive_lead_monitor(void);
+    void update_passive_lead_monitor(const MAX30009_STATUS_STRUCT_TYPE &new_status);
+    bool update_debounced_flag(bool raw_value, uint8_t &counter, bool &debounced_value);
+
+    static constexpr uint8_t LEAD_MONITOR_DEBOUNCE_COUNT=3;
+    static constexpr uint8_t LEAD_MONITOR_LOFF_IMAG=0x04;
+    static constexpr uint8_t LEAD_MONITOR_LOFF_THRESH=0x03;
+    static constexpr uint8_t LEAD_MONITOR_BIOZ_CMP=0x02;
+    static constexpr uint8_t LEAD_MONITOR_BIOZ_LO_THRESH=0x08;
+    static constexpr uint8_t LEAD_MONITOR_BIOZ_HI_THRESH=0xF8;
+
     bool _need_buid_calibrate_table=false;
     bool _need_work_calibrate=false;
     uint32_t _work_calibrate_resistor_value=0;
@@ -125,6 +138,15 @@ private:
     VTFLT_moving_average<500> I_ch_flt;
     VTFLT_moving_average<500> Q_ch_flt;
     MAX30009_STATUS_STRUCT_TYPE status;
+    MAX30009_PASSIVE_LEAD_MONITOR_STATUS_TYPE _lead_status{};
+    bool _lead_monitor_active=false;
+    uint8_t _lead_bip_high_counter=0;
+    uint8_t _lead_bip_low_counter=0;
+    uint8_t _lead_bin_high_counter=0;
+    uint8_t _lead_bin_low_counter=0;
+    uint8_t _lead_drv_oor_counter=0;
+    uint8_t _lead_bioz_over_counter=0;
+    uint8_t _lead_bioz_under_counter=0;
 
 AUTOTEST_DATA_TDS autotest{};
 };

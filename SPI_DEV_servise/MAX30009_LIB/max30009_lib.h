@@ -195,6 +195,34 @@ public:
     */
     bool set_out_DLP_filter(MAX30009_BIOZ_DIGITAL_OUT_LP_FILTER_ENUM_TYPE filter_value);
 
+    /**
+        \brief enable or disable BIOZ threshold comparison
+        \param [in] enable - true to enable threshold comparison
+        \return - true if set successful
+     */
+    bool set_EN_BIOZ_THRESH(bool enable);
+
+    /**
+        \brief select BIOZ component used for threshold comparison
+        \param [in] compare_select - BIOZ_CMP register value
+        \return - true if set successful
+     */
+    bool set_BIOZ_CMP(uint8_t compare_select);
+
+    /**
+        \brief set BIOZ low threshold register value
+        \param [in] threshold - low threshold value
+        \return - true if set successful
+     */
+    bool set_BIOZ_LO_THRESH(uint8_t threshold);
+
+    /**
+        \brief set BIOZ high threshold register value
+        \param [in] threshold - high threshold value
+        \return - true if set successful
+     */
+    bool set_BIOZ_HI_THRESH(uint8_t threshold);
+
 
     /**
         \brief set input amplifier (INA) low power mode
@@ -358,6 +386,20 @@ public:
         \return - true if set successful
      */
     bool set_LOFF_IPOL(bool polarity_positive);
+
+    /**
+        \brief set DC lead-off threshold value
+        \param [in] threshold - LOFF_THRESH register value
+        \return - true if set successful
+     */
+    bool set_LOFF_THRESH(uint8_t threshold);
+
+    /**
+        \brief set LOFF_RAPID state
+        \param [in] enable - true bypasses the lead-off detection timer
+        \return - true if set successful
+     */
+    bool set_LOFF_RAPID(bool enable);
 
     /**
         \brief set EN_DRV_OOR state (Enable Drive Out-Of-Range detection / Compliance Monitor)
@@ -1358,6 +1400,46 @@ inline bool MAX30009_LIB::set_out_DLP_filter(MAX30009_BIOZ_DIGITAL_OUT_LP_FILTER
     return write_reg_result;
 }
 
+inline bool MAX30009_LIB::set_EN_BIOZ_THRESH(bool enable)
+{
+    _write_reg.BIOZ_CONFIGURATION_2.EN_BIOZ_THRESH=(uint8_t)enable;
+
+    bool write_reg_result=write_register(MAX30009_ADDRESS_BIOZ_CONFIGURATION_2);
+
+    calculate_BIOZ_modes();
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_BIOZ_CMP(uint8_t compare_select)
+{
+    _write_reg.BIOZ_CONFIGURATION_2.BIOZ_CMP=(uint8_t)(compare_select & 0x03);
+
+    bool write_reg_result=write_register(MAX30009_ADDRESS_BIOZ_CONFIGURATION_2);
+
+    calculate_BIOZ_modes();
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_BIOZ_LO_THRESH(uint8_t threshold)
+{
+    _write_reg.BIOZ_LOW_THRESHOLD.BIOZ_LO_THRESH=threshold;
+
+    bool write_reg_result=write_register(MAX30009_ADDRESS_BIOZ_LOW_THRESHOLD);
+
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_BIOZ_HI_THRESH(uint8_t threshold)
+{
+    _write_reg.BIOZ_HIGH_THRESHOLD.BIOZ_HI_THRESH=threshold;
+
+    bool write_reg_result=write_register(MAX30009_ADDRESS_BIOZ_HIGH_THRESHOLD);
+
+    return write_reg_result;
+}
+
 inline bool MAX30009_LIB::set_INA_low_mode(bool INA_low_mode_enable)
 {
     _write_reg.BIOZ_CONFIGURATION_5.BIOZ_INA_MODE=(uint8_t)INA_low_mode_enable;
@@ -1631,6 +1713,20 @@ inline bool MAX30009_LIB::set_LOFF_IPOL(bool polarity_positive)
 {
     _write_reg.DC_LEADS_CONFIGURATION.LOFF_IPOL = (uint8_t)polarity_positive;
     bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEADS_CONFIGURATION);
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_LOFF_THRESH(uint8_t threshold)
+{
+    _write_reg.DC_LEAD_DETECT_THRESHOLD.LOFF_THRESH = (uint8_t)(threshold & 0x0F);
+    bool write_reg_result = write_register(MAX30009_ADDRESS_DC_LEAD_DETECT_THRESHOLD);
+    return write_reg_result;
+}
+
+inline bool MAX30009_LIB::set_LOFF_RAPID(bool enable)
+{
+    _write_reg.BIOZ_CONFIGURATION_3.LOFF_RAPID = (uint8_t)enable;
+    bool write_reg_result = write_register(MAX30009_ADDRESS_BIOZ_CONFIGURATION_3);
     return write_reg_result;
 }
 
@@ -2189,7 +2285,7 @@ inline MAX30009_CALIB_STATE_ENUM_TYPE MAX30009_LIB::calibrate_main_proccess()
         set_LEAD_RBIAS_VALUE(MAX30009_LEAD_RBIAS_50M);
 
         set_ext_resistor_state(false,0);
-        set_ext_capacitor_state(true);
+        set_ext_capacitor_state(false);
         set_BIOZ_DC_restore(true);
         set_EN_DRV_OOR(true);
         set_MUX_EN_INT_INLOAD(true);
